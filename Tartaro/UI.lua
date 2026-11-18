@@ -1,4 +1,4 @@
-local addonName, A = ...
+local _, A = ...
 local crest = "Interface\\AddOns\\Tartaro\\Crest"
 local skull = "Interface\\AddOns\\Tartaro\\HeaderSkull"
 local icon = "Interface\\AddOns\\Tartaro\\MinimapIcon"
@@ -151,6 +151,7 @@ local function row()
     frame.label:SetWidth(columnWidth - 8)
     frame.label:Hide()
     frame.button:Hide()
+    if frame.participantMenu then frame.participantMenu:Hide() end
     if frame.detail then frame.detail:Hide() end
     if frame.memberCells then
         for _, cell in ipairs(frame.memberCells) do cell:Hide() end
@@ -173,6 +174,7 @@ local function line(value, color, compact)
     local height = math.max(compact and 17 or 23, frame.label:GetStringHeight() + (compact and 4 or 10))
     frame:SetHeight(height)
     y = y + height
+    return frame
 end
 
 local function button(label, callback, primary, width)
@@ -842,6 +844,60 @@ local function home()
     end)
 end
 
+local function eventParticipant(event, entry, label)
+    local frame = line(label)
+    if entry.id == A.self then return end
+    if not frame.participantMenu then
+        local control = CreateFrame("Button", nil, frame)
+        control:SetAllPoints(frame)
+        control:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        control:SetScript("OnEnter", function() frame.label:SetTextColor(unpack(accent)) end)
+        control:SetScript("OnLeave", function() frame.label:SetTextColor(0.96, 0.90, 0.82) end)
+        frame.participantMenu = control
+    end
+    local db, id, eventId = A.db, entry.id, event.id
+    local function currentParticipant()
+        if A.db ~= db or not A.can(A.me, "event") then return end
+        local current = db.events[eventId]
+        local signups = db.signups[eventId]
+        if not current or current.when <= GetServerTime() or not signups or not signups[id] or not signups[id].joined then return end
+        return A.members[id]
+    end
+    frame.participantMenu:SetScript("OnClick", function(owner)
+        local member = currentParticipant()
+        if not member then return end
+        MenuUtil.CreateContextMenu(owner, function(_, root)
+            root:CreateTitle(member.name)
+            local inRaid = IsInRaid()
+            local invite = root:CreateButton(inRaid and "Invitar a la banda" or "Invitar al grupo", function()
+                local target = currentParticipant()
+                if not target or target.online == false then return end
+                local send = C_PartyInfo and C_PartyInfo.InviteUnit or InviteUnit
+                if send then
+                    local ok, result = pcall(send, target.name)
+                    if ok and result ~= false then return end
+                end
+                if ChatFrame_OpenChat then
+                    ChatFrame_OpenChat("/invite " .. target.name)
+                else
+                    print("Tártaro: WoW no pudo enviar la invitación.")
+                end
+            end)
+            invite:SetEnabled(member.online ~= false)
+            local convert = C_PartyInfo and C_PartyInfo.ConvertToRaid or ConvertToRaid
+            local isLeader = IsInGroup() and UnitIsGroupLeader("player")
+            if convert and not inRaid and (not issecretvalue or not issecretvalue(isLeader)) and isLeader then
+                root:CreateButton("Convertir grupo en banda", function()
+                    if not currentParticipant() or IsInRaid() or not IsInGroup() then return end
+                    local leader = UnitIsGroupLeader("player")
+                    if (not issecretvalue or not issecretvalue(leader)) and leader then convert() end
+                end)
+            end
+        end)
+    end)
+    frame.participantMenu:Show()
+end
+
 local function calendar()
     local allowed = A.can(A.me, "event")
     local events = {}
@@ -907,7 +963,7 @@ local function calendar()
             local signup = entry.signup
             local suffix = current.caps and (" · " .. (A.eventRoles[signup.role] or "Sin rol")
                 .. " · " .. (status[entry.id] or "Pendiente")) or ""
-            line(signup.name .. suffix)
+            eventParticipant(current, entry, signup.name .. suffix)
         end
         button("Editar evento", function() openEditor("event", current) end)
     end
@@ -994,10 +1050,14 @@ optionsPanel:Hide()
 do
     local title = text(optionsPanel, "Llamado a las armas", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT")
-    local metadata = C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
-    local version = metadata and metadata(addonName, "Version")
-    local versionLabel = text(optionsPanel, version and ("Versión " .. version) or "Versión sin datos")
+    local versionLabel = text(optionsPanel, "")
     versionLabel:SetPoint("TOPRIGHT")
+    function A.updateVersionLabel()
+        local label = A.addonVersion and ("Versión " .. A.addonVersion) or "Versión sin datos"
+        if A.newerAddonVersion then label = label .. " · Detectada " .. A.newerAddonVersion end
+        versionLabel:SetText(label)
+    end
+    A.updateVersionLabel()
     local handle
     local function stopPreview()
         if handle and StopSound then StopSound(handle) end

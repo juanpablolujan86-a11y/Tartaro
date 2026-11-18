@@ -224,7 +224,7 @@ local function newId(rev)
 end
 
 local historyDays = 30 * 86400
-local addonActions = {Q = true, H = true, P = true, X = true, R = true, N = true, D = true, E = true, S = true, K = true,
+local addonActions = {Q = true, H = true, V = true, P = true, X = true, R = true, N = true, D = true, E = true, S = true, K = true,
     F = true, FQ = true, FM = true, FR = true, HP = true, CTA = true,
     CTX = true, CTJ = true, GR = true, OR = true, OF = true, OC = true, AQ = true}
 
@@ -241,6 +241,7 @@ local function replay()
     if not A.db or replayQueue then return end
     A.broadcastPosition()
     A.shareRole(true)
+    A.shareVersion()
     A.shareHonor()
     A.replayActivities()
     local packets = {}
@@ -343,6 +344,9 @@ local function receive(message, sender)
         return
     elseif action == "H" then
         A.receiveRole(author, a, b)
+        return
+    elseif action == "V" then
+        A.receiveVersion(a)
         return
     elseif action == "P" then
         A.receivePosition(member, tonumber(a), tonumber(b), tonumber(c))
@@ -524,10 +528,12 @@ local function refreshRoster()
         A.locationSent = nil
         A.resetActivities()
         A.resetOrders()
+        A.resetVersionNotice()
         trim()
         request()
         A.requestOrders()
         A.shareRole(true)
+        A.shareVersion()
         A.queuePendingEvents()
         A.professionGuildChanged()
         A.invalidateMap(true)
