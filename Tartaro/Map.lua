@@ -1,0 +1,395 @@
+local _, A = ...
+local pins = {}
+local nativePins = {}
+local minimapPins = {}
+local hookedMap
+local hookedOpenMap
+local mapUpdatePending
+local cachedGroup, groupUntil
+local locationLifetime = 75
+local dotTexture = "Interface\\AddOns\\Tartaro\\MapDot"
+local nativeTemplate = "TartaroWorldMapPinTemplate"
+TartaroWorldMapPinMixin = {}
+
+local function readable(value)
+    return not issecretvalue or not issecretvalue(value)
+end
+
+local function number(value)
+    return readable(value) and type(value) == "number" and value > -math.huge and value < math.huge
+end
+
+local function coordinate(value)
+    return number(value) and value >= 0 and value <= 1
+end
+
+function A.invalidateMap(groupChanged)
+    if groupChanged then cachedGroup = nil end
+    if mapUpdatePending or not WorldMapFrame or not WorldMapFrame:IsShown() then return end
+    mapUpdatePending = true
+    C_Timer.After(0.12, function()
+        mapUpdatePending = nil
+        A.drawPositions()
+    end)
+end
+
+function A.receivePosition(member, mapID, x, y)
+    if not mapID or mapID <= 0 or mapID % 1 ~= 0 or not coordinate(x) or not coordinate(y) then return end
+    A.positions[member.id] = { mapID = mapID, x = x, y = y, name = member.name, expires = GetTime() + locationLifetime }
+    A.invalidateMap()
+end
+
+local function ownPosition()
+    if IsInInstance() then return end
+    local mapID = C_Map.GetBestMapForUnit("player")
+    if not readable(mapID) or not mapID then return end
+    local position = C_Map.GetPlayerMapPosition(mapID, "player")
+    if not readable(position) or not position then return end
+    local x, y = position:GetXY()
+    if coordinate(x) and coordinate(y) and (x ~= 0 or y ~= 0) then
+        return mapID, x, y
+    end
+end
+
+local function wireCoordinate(value)
+    local scaled = math.floor(value * 100000 + 0.5)
+    return ("%d.%05d"):format(math.floor(scaled / 100000), scaled % 100000)
+end
+
+local callLifetime, callCooldown = 300, 30
+
+function A.prepareCall()
+    if not A.can(A.me, "call") then return nil, "Tu rango no puede lanzar llamados." end
+    local mapID, x, y = ownPosition()
+    if not mapID then return nil, "El llamado requiere una ubicación al aire libre." end
+    return {mapID = mapID, x = x, y = y}
+end
+
+function A.callLocation(call)
+    local info = C_Map.GetMapInfo(call.mapID)
+    local name = info and readable(info.name) and info.name or ("Zona " .. call.mapID)
+    return ("%s · %.0f, %.0f"):format(name, call.x * 100, call.y * 100)
+end
+
+function A.receiveCall(member, when, mapID, x, y)
+    local now = GetServerTime()
+    if not number(when) or when % 1 ~= 0 or when > now + 5 or now - when >= callLifetime
+        or not number(mapID) or mapID <= 0 or mapID % 1 ~= 0 or not coordinate(x) or not coordinate(y) then return end
+    local previous = A.calls[member.id]
+    if (A.closedCalls[member.id] or 0) >= when then return end
+    if previous and when - previous.when < callCooldown then return end
+    local call = {author = member.id, name = member.name, when = when, expires = when + callLifetime, mapID = mapID, x = x, y = y}
+    A.calls[member.id] = call
+    if member.id == A.self then A.callRequests = {} end
+    A.invalidateMap()
+    if member.id ~= A.self then
+        A.showCall(call)
+        A.playCallSound(true)
+    end
+end
+
+function A.sendCall(position)
+    if not A.can(A.me, "call") then return nil, "Tu rango no puede lanzar llamados." end
+    local now = GetServerTime()
+    local previous = A.calls[A.self]
+    local last = math.max(previous and previous.when or 0, A.closedCalls[A.self] or 0)
+    if now - last < callCooldown then return nil, "Esperá 30 segundos entre llamados." end
+    if not A.send("CTA", now, position.mapID, wireCoordinate(position.x), wireCoordinate(position.y)) then
+        return nil, "No se pudo enviar el llamado. Volvé a intentar."
+    end
+    A.receiveCall(A.me, now, position.mapID, position.x, position.y)
+    return true
+end
+
+function A.openCallMap(call)
+    local map = WorldMapFrame
+    if not map then return end
+    ShowUIPanel(map)
+    map:SetMapID(call.mapID)
+    local api = OpenMapAPI
+    if api and api.major == 1 and api.IsStitched and api.IsStitched() and api.WorldFromMap and api.ShowWorld then
+        local u, v = api.WorldFromMap(call.mapID, call.x, call.y)
+        if number(u) and number(v) then api.ShowWorld(u, v) end
+    end
+    A.drawPositions()
+end
+
+function A.broadcastPosition()
+    if not A.guild or TartaroDB.shareLocation == false then return end
+    A.clearPendingPosition()
+    local mapID, x, y = ownPosition()
+    if mapID then A.send("P", mapID, wireCoordinate(x), wireCoordinate(y)) end
+end
+
+function A.locationStatus()
+    if TartaroDB.shareLocation == false then return "Tu ubicación está desactivada." end
+    if not ownPosition() then return "WoW no proporciona coordenadas para tu ubicación actual." end
+    if not A.locationSent or GetTime() - A.locationSent > locationLifetime then return "Esperando poder enviar tu ubicación." end
+    return "Tu ubicación se está enviando."
+end
+
+function A.setSharing(enabled)
+    TartaroDB.shareLocation = enabled
+    A.clearPendingPosition()
+    if enabled then A.broadcastPosition() else A.send("X") end
+end
+
+local function groupedMembers()
+    local now = GetTime()
+    if cachedGroup and now < groupUntil then return cachedGroup end
+    local grouped = {}
+    local raid = IsInRaid()
+    for index = 1, raid and GetNumGroupMembers() or GetNumSubgroupMembers() do
+        local name, realm = UnitFullName((raid and "raid" or "party") .. index)
+        if readable(name) and readable(realm) and name then
+            local member = A.member(realm and realm ~= "" and name .. "-" .. realm or name)
+            if member then grouped[member.id] = true end
+        end
+    end
+    cachedGroup, groupUntil = grouped, now + 1
+    return grouped
+end
+
+local groupEvents = CreateFrame("Frame")
+groupEvents:RegisterEvent("GROUP_ROSTER_UPDATE")
+groupEvents:SetScript("OnEvent", function() A.invalidateMap(true) end)
+
+local function stitchedCoordinates(api, position, mapID)
+    if api.CanvasFromWorldPos and C_Map.GetWorldPosFromMapPos then
+        local continent, world = C_Map.GetWorldPosFromMapPos(position.mapID, CreateVector2D(position.x, position.y))
+        if continent and world then
+            local x, y = world:GetXY()
+            local mx, my = api.CanvasFromWorldPos(continent, x, y)
+            if number(mx) and number(my) then return mx, my end
+        end
+    end
+    if api.WorldFromMap and api.MapFromWorld then
+        local u, v = api.WorldFromMap(position.mapID, position.x, position.y)
+        if number(u) and number(v) then return api.MapFromWorld(mapID, u, v) end
+    end
+end
+
+local function mapRect(inner, outer)
+    if not C_Map.GetMapRectOnMap then return end
+    local left, right, top, bottom = C_Map.GetMapRectOnMap(inner, outer)
+    if coordinate(left) and coordinate(right) and coordinate(top) and coordinate(bottom)
+        and right > left and bottom > top then
+        return left, right, top, bottom
+    end
+end
+
+local function mapCoordinates(position, mapID, stitched)
+    if stitched then return stitchedCoordinates(stitched, position, mapID) end
+    if mapID == position.mapID then return position.x, position.y end
+    local left, right, top, bottom = mapRect(position.mapID, mapID)
+    if left then
+        return left + (right - left) * position.x, top + (bottom - top) * position.y
+    end
+    left, right, top, bottom = mapRect(mapID, position.mapID)
+    if left then
+        return (position.x - left) / (right - left), (position.y - top) / (bottom - top)
+    end
+    local continent, world = C_Map.GetWorldPosFromMapPos(position.mapID, CreateVector2D(position.x, position.y))
+    if not continent or not world then return end
+    local targetContinent = C_Map.GetWorldPosFromMapPos(mapID, CreateVector2D(0.5, 0.5))
+    if targetContinent ~= continent then return end
+    local projectedMap, projected = C_Map.GetMapPosFromWorldPos(continent, world, mapID)
+    if (projectedMap == mapID or projectedMap == nil) and projected then return projected:GetXY() end
+end
+
+local function colorPin(pin, member)
+    local class = member.class
+    local color = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+    if color then
+        pin.dot:SetVertexColor(color.r, color.g, color.b)
+    else
+        pin.dot:SetVertexColor(0.85, 0.85, 0.85)
+    end
+end
+
+local function newPin(canvas)
+    local pin = CreateFrame("Frame", nil, canvas)
+    pin:SetSize(11, 11)
+    pin:SetFrameStrata(canvas:GetFrameStrata())
+    pin.dot = pin:CreateTexture(nil, "ARTWORK")
+    pin.dot:SetAllPoints()
+    pin.dot:SetTexture(dotTexture)
+    if pin.EnableMouseMotion and pin.EnableMouseClicks then
+        pin:EnableMouseClicks(false)
+        pin:EnableMouseMotion(true)
+    end
+    pin:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(self.character, 1, 0.8, 0.55)
+        GameTooltip:Show()
+    end)
+    pin:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    return pin
+end
+
+local function releaseNativePins(map)
+    for id, pin in pairs(nativePins) do
+        if pin:GetMap() == map then map:RemovePin(pin) end
+        nativePins[id] = nil
+    end
+end
+
+local function nativePin(map, id)
+    local pin = nativePins[id]
+    if pin and pin:GetMap() == map then return pin end
+    pin = map:AcquirePin(nativeTemplate)
+    nativePins[id] = pin
+    return pin
+end
+
+local function prepareNativeTemplate()
+    if not MapCanvasPinMixin then return false end
+    if not TartaroWorldMapPinMixin.SetOwningMap then
+        Mixin(TartaroWorldMapPinMixin, MapCanvasPinMixin)
+        function TartaroWorldMapPinMixin:OnLoad()
+            self:UseFrameLevelType("PIN_FRAME_LEVEL_AREA_POI", 12)
+            self:SetScalingLimits(1, 1, 1)
+        end
+        function TartaroWorldMapPinMixin:OnMouseEnter()
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(self.character, 1, 0.8, 0.55)
+            GameTooltip:Show()
+        end
+        function TartaroWorldMapPinMixin:OnMouseLeave()
+            GameTooltip:Hide()
+        end
+    end
+    return true
+end
+
+function A.drawPositions()
+    local api = OpenMapAPI
+    if api and api.major == 1 and api.RegisterCallback and hookedOpenMap ~= api then
+        hookedOpenMap = api
+        api.RegisterCallback(A, "OpenMap_ViewChanged", A.drawPositions)
+        api.RegisterCallback(A, "OpenMap_StitchedChanged", A.drawPositions)
+    end
+    local map = WorldMapFrame
+    if not map or not map.GetCanvas then return end
+    if hookedMap ~= map then
+        hookedMap = map
+        map:HookScript("OnShow", A.drawPositions)
+        map:HookScript("OnHide", releaseNativePins)
+        if map.OnMapChanged then hooksecurefunc(map, "OnMapChanged", A.drawPositions) end
+        if map.OnCanvasScaleChanged then hooksecurefunc(map, "OnCanvasScaleChanged", A.drawPositions) end
+    end
+    if not map:IsShown() then return end
+    local canvas, mapID = map:GetCanvas(), map:GetMapID()
+    if not canvas or not mapID then return end
+    local stitched = api and api.major == 1 and api.IsStitched and api.IsStitched() and api
+    local useNative = not stitched and map.AcquirePin and map.RemovePin and prepareNativeTemplate()
+    if not useNative then releaseNativePins(map) end
+    local level = canvas:GetFrameLevel() + 200
+    local artTop = stitched and stitched.ArtTopLevel and stitched.ArtTopLevel()
+    if artTop then level = math.max(level, artTop + 10) end
+    local scale = map:GetEffectiveScale() / canvas:GetEffectiveScale()
+    local grouped, used, placed, count = groupedMembers(), 0, {}, 0
+    local function draw(id, position, isCall)
+        local x, y = mapCoordinates(position, mapID, stitched)
+        local valid = stitched and number or coordinate
+        if valid(x) and valid(y) then
+            local pin
+            if useNative then
+                pin = nativePin(map, id)
+                pin:SetPosition(x, y)
+                placed[id] = true
+            else
+                used = used + 1
+                pin = pins[used] or newPin(canvas)
+                pins[used] = pin
+                pin:SetParent(canvas)
+                pin:SetFrameLevel(level)
+                pin:SetScale(scale)
+                pin:ClearAllPoints()
+                pin:SetPoint("CENTER", canvas, "TOPLEFT", x * canvas:GetWidth() / scale, -y * canvas:GetHeight() / scale)
+            end
+            if isCall then
+                pin.dot:SetVertexColor(1, 0.25, 0.15)
+                pin:SetSize(18, 18)
+            else
+                colorPin(pin, A.members[id])
+                pin:SetSize(11, 11)
+            end
+            pin.character = isCall and ("Llamado a las armas · " .. position.name) or position.name
+            pin:Show()
+            count = count + 1
+        end
+    end
+    for id, position in pairs(A.positions) do
+        if position.expires <= GetTime() or not A.members[id] then
+            A.positions[id] = nil
+        elseif not grouped[id] then
+            draw(id, position, false)
+        end
+    end
+    for id, call in pairs(A.calls) do
+        if call.expires <= GetServerTime() or not A.can(A.members[id], "call") then
+            A.calls[id] = nil
+        else
+            draw("call:" .. id, call, true)
+        end
+    end
+    for index = used + 1, #pins do pins[index]:Hide() end
+    for id, pin in pairs(nativePins) do
+        if not placed[id] then
+            if pin:GetMap() == map then map:RemovePin(pin) end
+            nativePins[id] = nil
+        end
+    end
+    local info = C_Map.GetMapInfo(mapID)
+    local name = info and info.name
+    A.worldMapStatus = ("%s · %d marcadores"):format(readable(name) and name or tostring(mapID), count)
+end
+
+function A.drawMinimapPositions()
+    local minimap = Minimap
+    local used = 0
+    if next(A.positions) and minimap and minimap:IsVisible() and C_Minimap and C_Minimap.GetViewRadius then
+        local mapID, playerX, playerY = ownPosition()
+        local radius = C_Minimap.GetViewRadius()
+        local mapWidth, mapHeight
+        if mapID then mapWidth, mapHeight = C_Map.GetMapWorldSize(mapID) end
+        if number(radius) and radius > 0 and number(mapWidth) and mapWidth > 0
+            and number(mapHeight) and mapHeight > 0 then
+            local facing = 0
+            local getCVarBool = (C_CVar and C_CVar.GetCVarBool) or GetCVarBool
+            local rotates = getCVarBool and getCVarBool("rotateMinimap")
+            if readable(rotates) and rotates and not (C_Minimap.IsRotateMinimapIgnored and C_Minimap.IsRotateMinimapIgnored()) then
+                facing = GetPlayerFacing()
+            end
+            if number(facing) then
+                local sin, cos = math.sin(facing), math.cos(facing)
+                local grouped, now = groupedMembers(), GetTime()
+                local width, height = minimap:GetWidth() / 2, minimap:GetHeight() / 2
+                for id, position in pairs(A.positions) do
+                    local member = A.members[id]
+                    if member and member.online ~= false and position.expires > now and not grouped[id] then
+                        local x, y = mapCoordinates(position, mapID)
+                        if number(x) and number(y) then
+                            local east = (x - playerX) * mapWidth / radius
+                            local south = (y - playerY) * mapHeight / radius
+                            if east * east + south * south <= 0.9 ^ 2 then
+                                used = used + 1
+                                local pin = minimapPins[used] or newPin(minimap)
+                                minimapPins[used] = pin
+                                pin:SetFrameLevel(minimap:GetFrameLevel() + 5)
+                                pin.character = position.name
+                                colorPin(pin, member)
+                                pin:ClearAllPoints()
+                                pin:SetPoint("CENTER", minimap, "CENTER", (east * cos - south * sin) * width,
+                                    -(east * sin + south * cos) * height)
+                                pin:Show()
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    for index = used + 1, #minimapPins do minimapPins[index]:Hide() end
+end

@@ -1,0 +1,10 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <Frame name="TartaroWorldMapPinTemplate" mixin="TartaroWorldMapPinMixin" virtual="true" enableMouseMotion="true">
+        <Size x="12" y="12"/>
+        <Layers>
+            <Layer level="ARTWORK">
+                <Texture parentKey="dot" file="Interface\AddOns\Tartaro\MapDot" setAllPoints="true"/>
+            </Layer>
+        </Layers>
+    </Frame>
+</Ui>
