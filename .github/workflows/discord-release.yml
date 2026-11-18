@@ -1,0 +1,60 @@
+name: Anunciar Releases en Discord
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Publicar aviso de Tártaro
+        env:
+          DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, urlopen
+
+          webhook = os.environ["DISCORD_RELEASE_WEBHOOK"].strip()
+          if not webhook:
+              raise SystemExit("Falta configurar el secreto DISCORD_RELEASE_WEBHOOK.")
+
+          release = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))["release"]
+          version = release["tag_name"].removeprefix("v")
+          expected_name = f"Tartaro-{version}.zip"
+          installer = next((asset for asset in release["assets"] if asset["name"] == expected_name), None)
+          if installer is None:
+              raise SystemExit(f"El Release debe incluir el instalador {expected_name} antes de publicarse.")
+
+          notes = (release.get("body") or "").strip()
+          if len(notes) > 1100:
+              notes = notes[:1099].rstrip() + "…"
+          content = f"**Tártaro {version} disponible**"
+          if notes:
+              content += f"\n\n{notes}"
+          content += (
+              f"\n\n[Descargar ZIP]({installer['browser_download_url']})"
+              f" · [Ver Release]({release['html_url']})"
+          )
+          payload = {"content": content, "allowed_mentions": {"parse": []}}
+          try:
+              request = Request(
+                  webhook,
+                  data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                  headers={"Content-Type": "application/json", "User-Agent": "TartaroReleaseNotifier/1.0"},
+                  method="POST",
+              )
+              with urlopen(request, timeout=20) as response:
+                  print(f"Discord recibió el aviso de {release['tag_name']} (HTTP {response.status}).")
+          except HTTPError as error:
+              raise SystemExit(f"Discord rechazó el aviso (HTTP {error.code}).") from None
+          except (URLError, ValueError, TimeoutError):
+              raise SystemExit("No se pudo publicar el aviso. Revisá el webhook de Discord.") from None
+          PY
