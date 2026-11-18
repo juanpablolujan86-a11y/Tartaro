@@ -2172,6 +2172,9 @@ end
 
 local pendingSections
 function A.invalidate(section)
+    if section == "permissions" or section == "roster" then
+        callLauncher:SetShown(A.can(A.me, "call") == true)
+    end
     if pendingSections then pendingSections[section] = true; return end
     pendingSections = {[section] = true}
     C_Timer.After(0.08, function()

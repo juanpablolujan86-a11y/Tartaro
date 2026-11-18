@@ -511,6 +511,7 @@ function A.setGrant(order, permission, enabled)
     grant[permission] = enabled
     if not A.send(unpack(grantPacket(order, grant))) then return end
     A.db.grants[order] = grant
+    A.invalidate("permissions")
 end
 
 local function request()
