@@ -1,0 +1,71 @@
+local _, A = ...
+A.groupCategories = {
+    {key = "DUNGEON", label = "Mazmorra", categoryID = 2},
+    {key = "RAID", label = "Banda (Raid)", categoryID = 3},
+    {key = "BG", label = "BGs", categoryID = 8},
+    {key = "OTHER", label = "Otros"},
+}
+
+local function safe(fn, ...)
+    if not fn then return end
+    local ok, result = pcall(fn, ...)
+    if ok and (not issecretvalue or not issecretvalue(result)) then return result end
+end
+
+function A.groupCategory(key)
+    for _, category in ipairs(A.groupCategories) do
+        if category.key == key then return category end
+    end
+end
+
+function A.groupDestinations(key)
+    local category = A.groupCategory(key)
+    if not category or not category.categoryID then return {} end
+    local api = C_LFGList
+    local list, seen = {}, {}
+    local function collect()
+        local ids = safe(api and api.GetAvailableActivities, category.categoryID, nil, 0)
+        for _, id in ipairs(type(ids) == "table" and ids or {}) do
+            local info = safe(api.GetActivityInfoTable, id)
+            if info and info.categoryID == category.categoryID and type(info.fullName) == "string"
+                and info.fullName ~= "" and not seen[info.fullName] then
+                seen[info.fullName] = true
+                list[#list + 1] = {id = id, name = info.fullName}
+            end
+        end
+    end
+    -- Read only the activities supplied by the running client.
+    pcall(collect)
+    table.sort(list, function(left, right) return left.name < right.name end)
+    return list
+end
+
+function A.publishGroupSelection(key, destination, description, location, tanks, healers, damage)
+    local category = A.groupCategory(key)
+    if not category then return nil, "Seleccioná el tipo de actividad." end
+    local activity
+    if key == "OTHER" then
+        activity = A.clean(description)
+        if activity == "" then return nil, "Describí la actividad." end
+    else
+        for _, entry in ipairs(A.groupDestinations(key)) do
+            if entry.id == destination then activity = entry.name; break end
+        end
+        if not activity then return nil, "Seleccioná un destino disponible para esta categoría." end
+    end
+    local values = {tanks, healers, damage}
+    local counts, total = {}, 0
+    for index, value in ipairs(values) do
+        local count = value == "" and 0 or tonumber(value)
+        if not count or count % 1 ~= 0 or count < 0 or count > 40 then
+            return nil, "Cada rol admite un número entero entre 0 y 40."
+        end
+        counts[index], total = count, total + count
+    end
+    if #counts ~= 3 or total < 1 or total > 40 then return nil, "Indicá entre 1 y 40 jugadores que falten en total." end
+    local needs = {}
+    for index, count in ipairs(counts) do
+        if count > 0 then needs[#needs + 1] = count .. " " .. A.eventRoles[A.eventRoleOrder[index]] end
+    end
+    return A.publishGroup(category.label .. " · " .. activity, location, table.concat(needs, ", "))
+end

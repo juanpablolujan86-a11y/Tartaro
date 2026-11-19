@@ -1388,6 +1388,98 @@ do
     publish:SetPoint("BOTTOMRIGHT", -16, 14)
     publish:SetText("Publicar")
     publish:SetStyle(false, true)
+    local groupControls = CreateFrame("Frame", nil, form)
+    groupControls:SetAllPoints()
+    groupControls:Hide()
+    local categoryLabel = text(groupControls, "Tipo de actividad")
+    categoryLabel:SetPoint("TOPLEFT", 16, -50)
+    local categoryButton = copperButton(groupControls)
+    categoryButton:SetPoint("TOPLEFT", 16, -70)
+    categoryButton:SetSize(376, 27)
+    local destinationLabel = text(groupControls, "Destino")
+    destinationLabel:SetPoint("TOPLEFT", 16, -112)
+    local destinationButton = copperButton(groupControls)
+    destinationButton:SetPoint("TOPLEFT", 16, -132)
+    destinationButton:SetSize(376, 27)
+    destinationButton:GetFontString():SetWidth(352)
+    destinationButton:GetFontString():SetMaxLines(1)
+    local description = CreateFrame("EditBox", nil, groupControls, "InputBoxTemplate")
+    description:SetPoint("TOPLEFT", 22, -132)
+    description:SetSize(366, 25)
+    description:SetAutoFocus(false)
+    description:SetMaxLetters(55)
+    description:SetScript("OnEscapePressed", function() form:Hide() end)
+    local destinationStatus = text(groupControls, "")
+    destinationStatus:SetPoint("TOPLEFT", 16, -165)
+    destinationStatus:SetWidth(376)
+    local needsTitle = text(groupControls, "Jugadores que faltan · Vacío o 0 = ninguno")
+    needsTitle:SetPoint("TOPLEFT", 16, -250)
+    local needsFields = {}
+    for index, role in ipairs(A.eventRoleOrder) do
+        local label = text(groupControls, A.eventRoles[role])
+        label:SetPoint("TOPLEFT", 16 + (index - 1) * 127, -272)
+        local input = CreateFrame("EditBox", nil, groupControls, "InputBoxTemplate")
+        input:SetPoint("TOPLEFT", 22 + (index - 1) * 127, -292)
+        input:SetSize(108, 24)
+        input:SetAutoFocus(false)
+        input:SetNumeric(true)
+        input:SetMaxLetters(2)
+        input:SetScript("OnEscapePressed", function() form:Hide() end)
+        needsFields[index] = input
+    end
+    local selectedCategory, selectedDestination
+    local function syncGroupControls()
+        local category = A.groupCategory(selectedCategory)
+        local other = selectedCategory == "OTHER"
+        categoryButton:SetText(category.label .. "  ▾")
+        categoryButton:SetStyle(false)
+        destinationLabel:SetText(other and "Actividad" or "Destino")
+        destinationButton:SetShown(not other)
+        description:SetShown(other)
+        destinationButton:SetText("Seleccionar destino  ▾")
+        destinationButton:SetStyle(false)
+        if other then destinationStatus:SetText(""); return end
+        local list = A.groupDestinations(selectedCategory)
+        local selected
+        for _, entry in ipairs(list) do
+            if entry.id == selectedDestination then selected = entry; break end
+        end
+        if selected then destinationButton:SetText(selected.name .. "  ▾")
+        else selectedDestination = nil end
+        destinationStatus:SetText(#list == 0 and "El cliente no ofrece destinos ahora. Abrí el buscador del juego y volvé a intentar."
+            or "Destinos disponibles según el cliente.")
+    end
+    categoryButton:SetScript("OnClick", function(owner)
+        MenuUtil.CreateContextMenu(owner, function(_, root)
+            root:CreateTitle("Tipo de actividad")
+            for _, category in ipairs(A.groupCategories) do
+                local key = category.key
+                root:CreateRadio(category.label, function() return selectedCategory == key end, function()
+                    if selectedCategory ~= key then
+                        selectedCategory, selectedDestination = key, nil
+                        description:SetText("")
+                    end
+                    syncGroupControls()
+                end)
+            end
+        end)
+    end)
+    destinationButton:SetScript("OnClick", function(owner)
+        syncGroupControls()
+        local list = A.groupDestinations(selectedCategory)
+        MenuUtil.CreateContextMenu(owner, function(_, root)
+            root:CreateTitle(A.groupCategory(selectedCategory).label)
+            if root.SetScrollMode then root:SetScrollMode(260) end
+            if #list == 0 then root:CreateTitle("Sin destinos disponibles") end
+            for _, entry in ipairs(list) do
+                local id = entry.id
+                root:CreateRadio(entry.name, function() return selectedDestination == id end, function()
+                    selectedDestination = id
+                    syncGroupControls()
+                end)
+            end
+        end)
+    end)
     local recipe, guild
     local function updateReagents()
         if not recipe or A.db ~= guild or not form:IsShown() then return end
@@ -1419,7 +1511,9 @@ do
         title:SetText(recipe and ("Pedir " .. (recipe.object or recipe.name)) or "Estoy armando grupo")
         title:SetWidth(350)
         title:SetMaxLines(2)
-        local captions = recipe and {"Cantidad"} or {"Actividad", "Lugar", "Roles que faltan"}
+        local captions = recipe and {"Cantidad"} or {[2] = "Lugar"}
+        inputs[2][1]:ClearAllPoints()
+        inputs[2][1]:SetPoint("TOPLEFT", 16, -199)
         inputs[1][2]:SetNumeric(recipe ~= nil)
         inputs[1][2]:SetMaxLetters(recipe and 3 or 55)
         for i, input in ipairs(inputs) do
@@ -1429,11 +1523,18 @@ do
             input[2]:SetText(recipe and i == 1 and "1" or "")
         end
         materials:SetShown(recipe ~= nil)
+        groupControls:SetShown(recipe == nil)
+        if not recipe then
+            selectedCategory, selectedDestination = "DUNGEON", nil
+            description:SetText("")
+            for _, input in ipairs(needsFields) do input:SetText("") end
+            syncGroupControls()
+        end
         reagents:SetShown(recipe ~= nil)
         reagentScroll:SetVerticalScroll(0)
         materials:SetChecked(false)
         errorText:SetText("")
-        form:SetHeight(recipe and 378 or 275)
+        form:SetHeight(recipe and 378 or 408)
         form:Show()
         updateReagents()
         form:Raise()
@@ -1446,7 +1547,8 @@ do
         if recipe then
             ok, err = A.createOrder(recipe, inputs[1][2]:GetText(), materials:GetChecked() and true or false)
         else
-            ok, err = A.publishGroup(inputs[1][2]:GetText(), inputs[2][2]:GetText(), inputs[3][2]:GetText())
+            ok, err = A.publishGroupSelection(selectedCategory, selectedDestination, description:GetText(),
+                inputs[2][2]:GetText(), needsFields[1]:GetText(), needsFields[2]:GetText(), needsFields[3]:GetText())
         end
         if not ok then errorText:SetText(err or "No se pudo publicar."); return end
         if recipe then
@@ -1460,6 +1562,8 @@ do
     end)
     form:SetScript("OnHide", function()
         for _, input in ipairs(inputs) do input[2]:ClearFocus() end
+        description:ClearFocus()
+        for _, input in ipairs(needsFields) do input:ClearFocus() end
     end)
 end
 

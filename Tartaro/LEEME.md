@@ -1,4 +1,4 @@
-# Tártaro 0.1.48 para WoW: Forever
+# Tártaro 0.1.49 para WoW: Forever
 
 Cerrá el juego y copiá la carpeta `Tartaro` a `_forever_/Interface/AddOns/` dentro de la instalación de World of Warcraft. Si ya lo tenés instalado, reemplazá los archivos de esa carpeta. El archivo `Tartaro.toc` debe quedar directamente dentro de la carpeta del addon. En la selección de personaje, verificá que **Tártaro** esté habilitado. Entrá con un personaje de la hermandad y hacé clic en el emblema del borde inferior izquierdo del minimapa. También podés escribir `/tartaro`.
 
@@ -38,6 +38,7 @@ Podés arrastrar el botón de Tártaro con el botón izquierdo para cambiarlo de
 28. **Profesiones → Pedidos** muestra dos pedidos por fila. En **Opciones** podés elegir **Tambores y doble grito** o **Nature** y escuchar la selección con **▶ Probar**. El sonido original es el predeterminado.
 29. Si Tártaro recibe una versión más nueva desde otro miembro de la hermandad, muestra un aviso en el chat y la versión detectada en **Opciones**. Para compartir su versión, ambos miembros necesitan 0.1.46 o posterior.
 30. Quienes pueden editar eventos pueden hacer clic sobre el nombre de un inscrito para invitarlo al grupo o a la banda activa. Cuando ya lideran un grupo, el menú también permite convertirlo en banda.
+31. **Buscar grupo** permite elegir **Mazmorra**, **Banda (Raid)**, **BGs** u **Otros**. Los destinos vienen de las actividades que ofrece el cliente del juego y pueden variar según el personaje. Si no hay datos, se informa en el formulario. **Otros** admite texto libre. Completá **Lugar** y cuántos tanques, sanadores y DPS faltan. Vacío o cero indica que no falta ese rol y debe faltar entre 1 y 40 jugadores en total.
 
 El addon usa la conexión de WoW y guarda una copia local de los datos. Para recuperar un cambio que hiciste mientras otra persona estaba desconectada, tendrán que coincidir conectados con el addon. Cada copia retransmite sus propios cambios para que los receptores puedan verificar quién los hizo.
 
