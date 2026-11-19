@@ -94,7 +94,8 @@ local function create(item, quantity)
     assert(result, message)
     return result
 end
-local first = create("|cffffffff|Hitem:1:0|h[Cloth]|h|r", "12")
+assert(not A.createDonation("|cffffffff|Hitem:1:0|h[Cloth]|h|r", "12"))
+local first = create(1, "12")
 assert(first.created == now and #A.listDonations() == 1)
 assert(not A.createDonation(1, 12))
 assert(not A.createDonation(2, 12))

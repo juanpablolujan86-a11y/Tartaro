@@ -87,8 +87,7 @@ end
 function A.createDonation(selection, quantity)
     if not A.db or not A.me then return nil, "No hay una hermandad habilitada." end
     local item = type(selection) == "number" and integer(selection, 2147483647)
-        or type(selection) == "string" and integer(selection:match("|Hitem:(%d+):"), 2147483647)
-    if not item then return nil, "Pegá el enlace de un material o seleccionalo desde una receta." end
+    if not item then return nil, "Seleccioná un ingrediente desde los materiales de una receta." end
     quantity = integer(quantity, 1000000)
     if not quantity then return nil, "La cantidad debe ser un entero entre 1 y 1000000." end
     local valid, err = A.donationMaterial(item)

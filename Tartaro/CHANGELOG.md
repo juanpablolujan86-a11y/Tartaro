@@ -1,8 +1,9 @@
 # Cambios
 
-## 0.1.54 — candidata de pruebas
+## 0.1.54
 
 - Buscar grupo: botón **Volver a publicar** para repetir el anuncio sin reiniciar vencimiento, participantes o cupos. Las BG anuncian los roles que aún faltan; las misiones conservan su enlace.
+- Donaciones: creación exclusivamente desde **Buscar recetas → Materiales → Solicitar**, con el ingrediente visible y cantidad. Se retiran la entrada manual y el botón independiente; el listado y cierre se conservan.
 - Se documenta la licencia elegida y el estado de procedencia de los recursos.
 - Se preparan documentación de distribución y verificaciones del paquete. La publicación en CurseForge está aplazada.
 
@@ -18,4 +19,4 @@
 - Issue #1: categorías, destinos del cliente, necesidades numéricas y cupos por rol en búsquedas de BG.
 - Correcciones de caracteres de botones y carga del selector de destinos.
 
-Las verificaciones locales de las candidatas utilizan APIs simuladas. Su resultado no sustituye las pruebas manuales o E2E en Forever. Los issues #1–#4 siguen pendientes de esa aceptación; #5 sigue pendiente de las dependencias y la distribución real.
+El 19/11/2026 el propietario confirmó que las pruebas manuales de #1–#4 pasaron en Forever con dos personajes. Se registra como confirmación del usuario, sin atribuir al agente ejecución real ni un build no capturado. El ajuste final de la entrada de donaciones pasó las pruebas locales con APIs simuladas. #5 permanece abierto y CurseForge aplazado.

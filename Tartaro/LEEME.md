@@ -2,13 +2,13 @@
 
 Cerrá el juego y copiá la carpeta `Tartaro` a `_forever_/Interface/AddOns/` dentro de la instalación de World of Warcraft. Si ya lo tenés instalado, reemplazá los archivos de esa carpeta. El archivo `Tartaro.toc` debe quedar directamente dentro de la carpeta del addon. En la selección de personaje, verificá que **Tártaro** esté habilitado. Entrá con un personaje de la hermandad y hacé clic en el emblema del borde inferior izquierdo del minimapa. También podés escribir `/tartaro`.
 
-Esta versión es una candidata de pruebas. La presencia del código en GitHub no equivale a una release ni a una publicación en CurseForge. Las pruebas manuales/E2E pendientes se detallan más abajo. La publicación en CurseForge está aplazada por el propietario.
+Las pruebas manuales de los issues #1–#4 fueron confirmadas por el propietario el 19/11/2026. Las verificaciones locales se describen más abajo. La publicación en CurseForge sigue aplazada.
 
 ## Hermandad y solicitudes de donación
 
 Tártaro solo funciona en una hermandad cuyo nombre sea exactamente **Tartaro**, en cualquier reino. Los datos se guardan por hermandad y reino. Fuera de ella, `/tartaro` muestra «Usted no está en la Guild Tartaro» y se suspenden las funciones y los mensajes del addon. Mientras el juego carga la pertenencia, muestra un estado de espera. Cambiar de hermandad cierra formularios y avisos pendientes sin borrar los datos guardados.
 
-En **Profesiones → Listar Solicitud de Donacion**, pulsá **Solicitar un material**, pegá el enlace del objeto e indicá una cantidad entera entre 1 y 1000000. No hace falta tenerlo en las bolsas. También podés pulsar **Solicitar** junto a un ingrediente en el detalle de una receta. Esto solicita el material, no la fabricación del producto final.
+Para crear una solicitud, abrí **Profesiones → Buscar recetas**, seleccioná una receta y pulsá **Solicitar** junto a uno de sus materiales. El formulario muestra ese ingrediente y permite indicar una cantidad entera entre 1 y 1000000. No hace falta tenerlo en las bolsas ni conocer la receta. **Listar Solicitud de Donacion** conserva el listado y el cierre de las solicitudes propias. No hay entrada manual por nombre/enlace ni botón independiente de creación. Esto solicita el material, no la fabricación del producto final.
 
 Se admiten objetos identificados por el cliente como materiales de fabricación o presentes entre los ingredientes de recetas ya consultadas. Si faltan metadatos, se solicita su carga; esperá unos segundos y volvé a publicar. Si el cliente no marca un material antiguo como tal, consultá primero una receta que lo utilice. No se inventan categorías ni se admiten todos los objetos del juego.
 
@@ -24,9 +24,9 @@ En tu búsqueda activa, **Volver a publicar** repite el anuncio en el chat de la
 
 **Quest (Misiones)** muestra las misiones disponibles en el diario del personaje. Seleccioná una, completá lugar y roles, y publicá. El anuncio de hermandad incluye el enlace nativo de la misión sin cortarlo. Al publicar se comprueba que la misión continúe en el diario. Si el cliente todavía no entrega el enlace, se informa y permite reintentar. No requiere Questie y no acepta ni comparte misiones automáticamente.
 
-## Verificación pendiente en el juego
+## Verificación
 
-La compilación Lua 5.1, el XML y las pruebas con APIs simuladas cubren el acceso por hermandad, destinos de grupos, enlaces de misiones, formularios, autoría de donaciones, duplicados, cierres, vencimiento y tooltips. Falta comprobar las APIs y la presentación en el cliente real de Forever, con dos personajes, las bolsas utilizadas y los cambios durante combate. Estas pruebas locales no confirman la entrega real de mensajes ni la cobertura de todos los materiales y destinos del cliente.
+La compilación Lua 5.1, el XML y las pruebas con APIs simuladas cubren el acceso por hermandad, destinos de grupos, enlaces de misiones, formularios, autoría de donaciones, duplicados, cierres, vencimiento y tooltips. El propietario confirmó que pasaron las pruebas manuales de #1–#4 en Forever con dos personajes. Esa confirmación fue reportada por el usuario; no es una ejecución independiente del agente ni incluye un build o capturas registrados. El ajuste final que retira la entrada manual de donaciones tiene además cobertura local de regresión. Las simulaciones no demuestran entrega real ni cobertura universal de objetos.
 
 ## Primera prueba
 

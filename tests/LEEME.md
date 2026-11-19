@@ -10,17 +10,17 @@ Cobertura automatizada:
 - Destinos de mazmorra/banda/BG, capacidad de BG, validación de roles y revalidación de una misión al publicar.
 - Formulario de grupo y anuncio con enlace completo de misión dentro de 250 bytes.
 - Volver a publicar una búsqueda sin cambiar su identidad, vencimiento ni inscritos; roles restantes de BG, cupos completos, permiso retirado y borrador de chat cuando el envío está bloqueado.
-- Donaciones por enlace y por ingrediente sin exigir inventario; metadatos pendientes, materiales válidos y cantidades.
+- Donaciones exclusivamente por ingrediente sin exigir inventario; metadatos pendientes, materiales válidos, cantidades y ausencia de entrada manual.
 - Unicidad por propietario/material, varios solicitantes, autoría en el despacho real de mensajes, cierre antes del alta, replay y vencimiento.
 - Construcción de la UI con GetFontString nulo hasta SetText, formularios de donaciones y restauración tras cerrarlos.
 - Tooltip repetido/reconstruido, nombres desconectados, cierre, respeto de una línea reemplazada por otro addon y ausencia de mensajes por hover.
 
 La ejecución local pasó el 19 de noviembre de 2026. Los límites temporales se comprobaron moviendo el reloj simulado, no esperando una semana real.
 
-Pendiente antes de publicar o cerrar los issues:
+Escenarios manuales: el propietario confirmó el 19/11/2026 que las pruebas de #1–#4 pasaron con dos personajes. Se conserva abajo el alcance del plan; no hay una ejecución independiente del agente, build ni capturas registrados. El ajuste final de entrada por ingrediente se verificó localmente, incluida la selección de otro ingrediente y el rechazo de cantidades inválidas y duplicados.
 
 1. En Forever, comprobar la lista real de mazmorras, bandas, BG y misiones con el personaje utilizado. Publicar una misión y abrir su enlace desde otro personaje.
-2. Con dos personajes de Tartaro y la misma versión local, crear una donación desde enlace y otra desde receta; verlas en el receptor, desconectar al solicitante y comprobar que siguen visibles. Volver a conectar y cerrar la solicitud.
+2. Con dos personajes de Tartaro y la misma versión, crear una donación desde un ingrediente de receta; verla en el receptor, desconectar al solicitante y comprobar que sigue visible. Volver a conectar y cerrar la solicitud.
 3. Comprobar el tooltip en las bolsas nativas y en los addons de bolsas utilizados. Repetir sobre otro material, tras un cierre y tras una reconstrucción. Verificar que no afecta mover/dividir/usar objetos.
 4. Comprobar un personaje sin hermandad o de otra hermandad, el cierre de formularios al perder elegibilidad y la ocultación/restauración de ventanas durante combate.
 5. Revisar recetas, pedidos de fabricación, filtros de objetos ligados y los demás módulos habituales después de instalar.

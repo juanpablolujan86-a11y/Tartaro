@@ -128,7 +128,7 @@ def main():
         "flavor": metadata["AllowLoadGameType"],
         "toc_files": len(entries),
         "file_count": len(files),
-        "in_game_tests": "pending",
+        "in_game_tests": "See distribution/ISSUES.md; this tool does not perform live validation.",
         "curseforge_publication": "deferred_by_owner",
         "files": {name: hashlib.sha256(data).hexdigest() for name, data in files.items()},
     }
@@ -136,7 +136,7 @@ def main():
     target.parent.mkdir(exist_ok=True)
     target.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Verified {archive.name}: {len(files)} files; SHA256 {report['sha256']}")
-    print("No publication performed. In-game validation remains pending.")
+    print("No publication or live game validation performed by this tool.")
 
 
 if __name__ == "__main__":

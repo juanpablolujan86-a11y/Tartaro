@@ -18,7 +18,7 @@ The addon provides a guild calendar with signups, announcements and a daily mess
 
 Group searches support activity categories, locations and missing roles. Battleground searches support role slots. Quest searches use the character's own quest journal and announce a native quest link. Organizers can repost an active search without clearing its participants.
 
-Material donation requests can be created from an item link or a recipe ingredient. Received requests remain visible while the requester is offline, can be closed by their owner and expire seven days after creation. Item tooltips can list guild members who have requested that material.
+Material donation requests can be created from a recipe ingredient. The selected ingredient is displayed in a quantity form; there is no standalone item-entry form. Received requests remain visible while the requester is offline, can be closed by their owner and expire seven days after creation. Item tooltips can list guild members who have requested that material.
 
 Members need compatible addon versions to exchange addon data. Communication uses the game's guild addon channel; no external account or server is required. Received records are stored locally in `TartaroDB`. A client cannot recover an unseen request from an offline author until they are online together. Creating a request queues a message; it does not confirm receipt by every member.
 

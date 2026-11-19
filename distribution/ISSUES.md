@@ -1,14 +1,14 @@
 # Implementaciones y aceptación
 
-Versión candidata: **0.1.54**. Los cambios de #2–#4 y la republicación se verificaron localmente con APIs simuladas. #1 conserva implementación publicada en 0.1.52 y cobertura local ampliada. No hay pruebas E2E/manuales de esta candidata registradas dentro de Forever.
+Versión: **0.1.54**. El propietario confirmó el 19/11/2026 que pasaron todas las pruebas manuales de #1–#4 en Forever con dos personajes. Se registra como validación reportada por el usuario, sin ejecución independiente del agente ni build o capturas proporcionados. El último ajuste de Donaciones pasó las regresiones locales. El cierre se realiza por instrucción expresa del propietario; #5 permanece abierto.
 
-| Issue | Cambios realizados | Verificación local | Pendiente para cierre |
+| Issue | Cambios realizados | Verificación local | Aceptación / estado |
 | --- | --- | --- | --- |
-| [#1](https://github.com/juanpablolujan86-a11y/Tartaro/issues/1) | Categorías, destinos del cliente, roles numéricos y cupos de BG | Listas simuladas, límites y formulario compartido | Datos reales por categoría, publicación/recepción/cierre con dos personajes y regresión de pedidos |
-| [#2](https://github.com/juanpablolujan86-a11y/Tartaro/issues/2) | Nombre exacto Tartaro, espera de datos, aviso fuera de guild, cancelación de estado transitorio y conservación de datos | Entrada/salida, otra guild, espera y cierre de formularios | Login/reload reales, otra guild/sin guild, tráfico y combate/transiciones |
-| [#3](https://github.com/juanpablolujan86-a11y/Tartaro/issues/3) | Misiones del diario, revalidación y enlace nativo en el anuncio | Selección, misión retirada, formulario y enlace sin cortar | Diario y enlace reales, anuncio y recepción en otro personaje |
-| [#4](https://github.com/juanpablolujan86-a11y/Tartaro/issues/4) | Donaciones por enlace/ingrediente, cantidad, autoría, cierre, caducidad, persistencia y tooltip | Ciclo de vida, cierre fuera de orden, duplicados, metadatos y UI/tooltip | Dos clientes, bolsas reales, reconexión/reload y compatibilidad de materiales |
-| [#5](https://github.com/juanpablolujan86-a11y/Tartaro/issues/5) | Preparación local de ficha, licencia elegida, inventario de recursos, changelog y verificador del paquete | ZIP/CRC, contenido, rutas, recursos, versión y hashes | Cierre de #1–#4, derechos de recursos, avatar, cuenta, build, mediciones y publicación/instalación reales; CurseForge aplazado |
+| [#1](https://github.com/juanpablolujan86-a11y/Tartaro/issues/1) | Categorías, destinos del cliente, roles numéricos y cupos de BG | Listas simuladas, límites y formulario compartido | Pruebas manuales confirmadas por el propietario; listo para cierre |
+| [#2](https://github.com/juanpablolujan86-a11y/Tartaro/issues/2) | Nombre exacto Tartaro, espera de datos, aviso fuera de guild, cancelación de estado transitorio y conservación de datos | Entrada/salida, otra guild, espera y cierre de formularios | Pruebas manuales confirmadas por el propietario; listo para cierre |
+| [#3](https://github.com/juanpablolujan86-a11y/Tartaro/issues/3) | Misiones del diario, revalidación y enlace nativo en el anuncio | Selección, misión retirada, formulario y enlace sin cortar | Pruebas manuales confirmadas por el propietario; listo para cierre |
+| [#4](https://github.com/juanpablolujan86-a11y/Tartaro/issues/4) | Donaciones desde ingredientes, cantidad, autoría, cierre, caducidad, persistencia y tooltip; entrada manual retirada | Ciclo de vida, cierre fuera de orden, duplicados, metadatos y UI/tooltip | Pruebas manuales confirmadas por el propietario; ajuste final con regresión local; listo para cierre |
+| [#5](https://github.com/juanpablolujan86-a11y/Tartaro/issues/5) | Preparación local de ficha, licencia elegida, inventario de recursos, changelog y verificador del paquete | ZIP/CRC, contenido, rutas, recursos, versión y hashes | Derechos de recursos, avatar, cuenta, build, mediciones y publicación/instalación reales; CurseForge aplazado |
 
 ## Cómo registrar y cerrar un issue
 

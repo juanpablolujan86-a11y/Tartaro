@@ -1594,13 +1594,12 @@ do
     tinsert(UISpecialFrames, "TartaroDonationForm")
     local heading = text(form, "Solicitar donación", "GameFontNormalLarge")
     heading:SetPoint("TOPLEFT", 16, -18)
-    local caption = text(form, "Enlace del material")
+    local caption = text(form, "Material seleccionado")
     caption:SetPoint("TOPLEFT", 16, -58)
-    local link = CreateFrame("EditBox", nil, form, "InputBoxTemplate")
+    local link = text(form, "")
     link:SetPoint("TOPLEFT", 22, -80)
     link:SetSize(394, 26)
-    link:SetAutoFocus(false)
-    link:SetMaxLetters(400)
+    link:SetMaxLines(2)
     local amountCaption = text(form, "Cantidad solicitada")
     amountCaption:SetPoint("TOPLEFT", 16, -125)
     local quantity = CreateFrame("EditBox", nil, form, "InputBoxTemplate")
@@ -1617,29 +1616,24 @@ do
     publish:SetStyle(false, true)
     publish:SetSize(190, 28)
     publish:SetPoint("BOTTOMRIGHT", -16, 15)
-    local guild, selectedItem, ingredient
+    local guild, selectedItem
     local function identify()
-        selectedItem = ingredient or tonumber(link:GetText():match("|Hitem:(%d+):"))
-        if not selectedItem then status:SetText("Pegá el enlace de un material de fabricación."); return end
+        if not selectedItem then return end
+        link:SetText(A.professionItem(selectedItem) or ("Material " .. selectedItem))
         local valid, err = A.donationMaterial(selectedItem)
         status:SetText(valid and ((A.professionItem(selectedItem) or "Material") .. " · Vence en 7 días.") or err)
     end
-    link:SetScript("OnTextChanged", function() ingredient = nil; identify() end)
-    for _, input in ipairs({link, quantity}) do
-        input:SetScript("OnEscapePressed", function() form:Hide() end)
-    end
+    quantity:SetScript("OnEscapePressed", function() form:Hide() end)
     form:SetScript("OnHide", function()
-        link:ClearFocus()
         quantity:ClearFocus()
         if not form.resumeAfterCombat and guild and A.db == guild then win:Show(); A.refresh() end
     end)
     function A.openDonationForm(item)
-        if not A.db or combatWindowsBlocked() then return end
+        if not A.db or combatWindowsBlocked() or type(item) ~= "number" or item <= 0 or item % 1 ~= 0 then return end
         guild = A.db
         editor:Hide()
         TartaroActivityForm:Hide()
-        link:SetText(item and (A.professionItem(item) or ("Material " .. item)) or "")
-        ingredient = item
+        selectedItem = item
         quantity:SetText("1")
         identify()
         win:Hide()
@@ -1648,7 +1642,7 @@ do
     end
     function A.closeDonationForm()
         form.resumeAfterCombat = nil
-        guild, selectedItem, ingredient = nil, nil, nil
+        guild, selectedItem = nil, nil
         form:Hide()
     end
     function A.updateDonationCombat(blocked)
@@ -1661,7 +1655,7 @@ do
     end
     publish:SetScript("OnClick", function()
         if not guild or A.db ~= guild then A.closeDonationForm(); return end
-        local request, err = A.createDonation(ingredient or link:GetText(), quantity:GetText())
+        local request, err = A.createDonation(selectedItem, quantity:GetText())
         if not request then status:SetText(err); return end
         form:Hide()
         professionView = "donations"
@@ -2196,7 +2190,6 @@ end
 local function professions(onlyDetail)
     if professionView == "donations" then
         line("Solicitudes de donación", accent)
-        button("Solicitar un material", function() A.openDonationForm() end, true)
         local requests = A.listDonations()
         if #requests == 0 then line("No hay solicitudes activas.") end
         for _, request in ipairs(requests) do
