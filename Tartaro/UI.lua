@@ -1447,7 +1447,9 @@ do
         end
         if selected then destinationButton:SetText(selected.name)
         else selectedDestination = nil end
-        destinationStatus:SetText(#list == 0 and "El cliente no ofrece destinos ahora. Abrí el buscador del juego y volvé a intentar."
+        destinationStatus:SetText(selectedCategory == "BG" and selected and selected.maximum
+            and ("Máximo de la BG: " .. selected.maximum .. " jugadores.")
+            or #list == 0 and "El cliente no ofrece destinos ahora. Abrí el buscador del juego y volvé a intentar."
             or "Destinos disponibles según el cliente.")
     end
     categoryButton:SetScript("OnClick", function(owner)
@@ -2115,9 +2117,40 @@ function A.renderGroups()
         local owner = A.members[group.owner]
         line(group.activity .. " · " .. owner.name, accent)
         line(group.location .. " · Faltan " .. group.needs)
+        if group.slots then
+            local counts, total, members = A.groupAttendance(group)
+            local capacity = group.slots.roles[1] + group.slots.roles[2] + group.slots.roles[3]
+            line(("Inscritos: %d/%d · Máximo de la BG: %d"):format(total, capacity, group.slots.maximum), accent)
+            for index, role in ipairs(A.eventRoleOrder) do
+                line(("%s: %d/%d"):format(A.eventRoles[role], counts[role], group.slots.roles[index]))
+                if counts[role] < group.slots.roles[index] and members[A.self] ~= role
+                    and (members[A.self] or total < group.slots.maximum) then
+                    local choice = role
+                    button("Participar como " .. A.eventRoles[choice], function() A.requestGroupRole(group, choice) end)
+                end
+            end
+            if total >= capacity then line("Cupos completos", accent) end
+            if A.groupRequestPending(group) then line("Esperando confirmación del organizador.") end
+            if members[A.self] then
+                line("Tu inscripción: " .. A.eventRoles[members[A.self]], accent)
+                button("Quitar mi inscripción", function() A.requestGroupRole(group, "-") end)
+                if group.owner ~= A.self then
+                    button("Pedir invitación", function()
+                        sendGroupWhisper(owner.name, "Me anoté como " .. A.eventRoles[members[A.self]]
+                            .. " para " .. group.activity .. ". ¿Me invitás?")
+                    end)
+                end
+            end
+            if group.owner == A.self then
+                local ids = {}
+                for id in pairs(members) do ids[#ids + 1] = id end
+                table.sort(ids)
+                for _, id in ipairs(ids) do line(A.members[id].name .. " · " .. A.eventRoles[members[id]]) end
+            end
+        end
         if group.owner == A.self then
             button("Cerrar búsqueda", function() A.closeGroup(group) end)
-        else
+        elseif not group.slots then
             if group.requestState then
                 line(group.requestState)
             else

@@ -226,7 +226,8 @@ end
 local historyDays = 30 * 86400
 local addonActions = {Q = true, H = true, V = true, P = true, X = true, R = true, N = true, D = true, E = true, S = true, K = true,
     F = true, FQ = true, FM = true, FR = true, HP = true, CTA = true,
-    CTX = true, CTJ = true, GR = true, OR = true, OF = true, OC = true, AQ = true}
+    CTX = true, CTJ = true, GR = true, OR = true, OF = true, OC = true, AQ = true,
+    GJ = true, GA = true}
 
 function A.hasUsedAddon(member)
     return A.db and A.db.addonSeen[member.id] ~= nil
@@ -384,7 +385,10 @@ local function receive(message, sender)
         A.receiveOrder(action, member, a, b, c, d, e, f, g, h)
         return
     elseif action == "CTX" or action == "CTJ" or action == "GR" then
-        A.receiveActivity(action, member, a, b, c, d, e)
+        A.receiveActivity(action, member, a, b, c, d, e, f)
+        return
+    elseif action == "GJ" or action == "GA" then
+        A.receiveGroupAttendance(action, member, a, b, c, d, e)
         return
     elseif action == "N" and A.can(member, "notice") then
         local when = tonumber(b)

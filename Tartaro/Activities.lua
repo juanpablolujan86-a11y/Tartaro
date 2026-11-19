@@ -41,7 +41,7 @@ function A.resetActivities()
     A.groups, A.closedCalls, A.callRequests = {}, {}, {}
 end
 
-function A.receiveActivity(action, member, a, b, c, d, e)
+function A.receiveActivity(action, member, a, b, c, d, e, f)
     local now = GetServerTime()
     if action == "GR" then
         local when = integer(a, now - groupLifetime + 1, now + 5)
@@ -50,8 +50,17 @@ function A.receiveActivity(action, member, a, b, c, d, e)
         if not when or not version or version == 1 and not A.can(member, "group")
             or old and (old.when > when or old.when == when and old.version >= version)
             or not c or c == "" or not d or d == "" or not e or e == "" then return end
-        A.groups[member.id] = {owner = member.id, when = when, version = version,
+        local slots
+        if f and f ~= "" then
+            local max, t, h, damage = f:match("^(%d+):(%d+):(%d+):(%d+)$")
+            local roles = max and A.eventCaps(t, h, damage)
+            max = integer(max, 1, 40)
+            if not max or not roles or roles[1] + roles[2] + roles[3] > max then return end
+            slots = {maximum = max, roles = roles}
+        end
+        A.groups[member.id] = {owner = member.id, when = when, version = version, slots = slots,
             activity = A.clean(c), location = A.clean(d), needs = A.clean(e)}
+        if A.groupsChanged then A.groupsChanged() end
     elseif action == "CTX" then
         local when = integer(a, now - 299, now + 5)
         if not when then return end
@@ -69,15 +78,16 @@ function A.receiveActivity(action, member, a, b, c, d, e)
     A.invalidate(action == "GR" and "groups" or "map")
 end
 
-function A.publishGroup(activity, location, needs)
+function A.publishGroup(activity, location, needs, slots)
     if not A.can(A.me, "group") then return nil, "Tu rango no puede publicar búsquedas de grupo." end
     activity, location, needs = A.clean(activity), A.clean(location), A.clean(needs)
     if activity == "" or location == "" or needs == "" then return nil, "Completá la actividad, el lugar y los roles." end
     local when = GetServerTime()
     local previous = A.groups[A.self]
     if previous and previous.when >= when then return nil, "Esperá un segundo y volvé a intentar." end
-    if not A.send("GR", when, 1, activity, location, needs) then return nil, "Acortá los textos o volvé a intentar." end
-    A.receiveActivity("GR", A.me, tostring(when), "1", activity, location, needs)
+    local extra = slots and (slots.maximum .. ":" .. table.concat(slots.roles, ":")) or ""
+    if not A.send("GR", when, 1, activity, location, needs, extra) then return nil, "Acortá los textos o volvé a intentar." end
+    A.receiveActivity("GR", A.me, tostring(when), "1", activity, location, needs, extra)
     return A.groups[A.self]
 end
 
@@ -96,7 +106,11 @@ end
 function A.replayActivities()
     local group = A.groups[A.self]
     if group and group.when + groupLifetime > GetServerTime() and (group.version == 2 or A.can(A.me, "group")) then
-        A.send("GR", group.when, group.version, group.activity, group.location, group.needs)
+        local extra = group.slots and (group.slots.maximum .. ":" .. table.concat(group.slots.roles, ":")) or ""
+        A.send("GR", group.when, group.version, group.activity, group.location, group.needs, extra)
+        if group.slots then
+            A.shareGroupAttendance(group)
+        end
     end
     local closed = A.closedCalls[A.self]
     if closed and closed + 300 > GetServerTime() then A.send("CTX", closed) end

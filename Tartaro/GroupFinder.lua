@@ -28,10 +28,14 @@ function A.groupDestinations(key)
         for index = 1, type(count) == "number" and math.min(count, 100) or 0 do
             local info = safe(C_PvP and C_PvP.GetBattlegroundInfo, index)
             local name = type(info) == "table" and safe(function() return info.name end)
-            name = name or safe(GetBattlegroundInfo, index)
+            local maximum = type(info) == "table" and safe(function() return info.maxPlayers end)
+            if not name or not maximum then
+                local ok, oldName, _, _, _, _, _, _, maxPlayers = pcall(GetBattlegroundInfo or function() end, index)
+                if ok then name, maximum = name or oldName, maximum or maxPlayers end
+            end
             if type(name) == "string" and name ~= "" and not seen[name] then
                 seen[name] = true
-                list[#list + 1] = {id = "bg:" .. name, name = name}
+                list[#list + 1] = {id = "bg:" .. name, name = name, maximum = maximum}
             end
         end
         table.sort(list, function(left, right) return left.name < right.name end)
@@ -57,13 +61,13 @@ end
 function A.publishGroupSelection(key, destination, description, location, tanks, healers, damage)
     local category = A.groupCategory(key)
     if not category then return nil, "Seleccioná el tipo de actividad." end
-    local activity
+    local activity, maximum
     if key == "OTHER" then
         activity = A.clean(description)
         if activity == "" then return nil, "Describí la actividad." end
     else
         for _, entry in ipairs(A.groupDestinations(key)) do
-            if entry.id == destination then activity = entry.name; break end
+            if entry.id == destination then activity, maximum = entry.name, entry.maximum; break end
         end
         if not activity then return nil, "Seleccioná un destino disponible para esta categoría." end
     end
@@ -77,9 +81,16 @@ function A.publishGroupSelection(key, destination, description, location, tanks,
         counts[index], total = count, total + count
     end
     if #counts ~= 3 or total < 1 or total > 40 then return nil, "Indicá entre 1 y 40 jugadores que falten en total." end
+    if key == "BG" then
+        if type(maximum) ~= "number" or maximum % 1 ~= 0 or maximum < 1 or maximum > 40 then
+            return nil, "El cliente todavía no informó la capacidad de esta BG."
+        end
+        if total > maximum then return nil, "Los cupos superan el máximo de " .. maximum .. " jugadores de esta BG." end
+    end
     local needs = {}
     for index, count in ipairs(counts) do
         if count > 0 then needs[#needs + 1] = count .. " " .. A.eventRoles[A.eventRoleOrder[index]] end
     end
-    return A.publishGroup(category.label .. " · " .. activity, location, table.concat(needs, ", "))
+    return A.publishGroup(category.label .. " · " .. activity, location, table.concat(needs, ", "),
+        key == "BG" and {maximum = maximum, roles = counts} or nil)
 end
