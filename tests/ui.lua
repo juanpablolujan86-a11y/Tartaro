@@ -79,7 +79,7 @@ GetTime = function() return 20 end
 InCombatLockdown = function() return false end
 C_Timer = {After = function(_, fn) deferred[#deferred + 1] = fn end,
     NewTicker = function(_, fn) tickers[#tickers + 1] = fn end}
-C_AddOns = {GetAddOnMetadata = function() return "0.1.52" end}
+C_AddOns = {GetAddOnMetadata = function() return "0.1.54" end}
 TartaroDB = {guilds = {}, recipeMaterials = {[7] = {[1] = 2}}}
 C_Item = {GetItemInfo = function(id)
     return "Cloth", "|Hitem:" .. id .. ":0|h[Cloth]|h", 1, 1, 1, "Trade", "Cloth", 200, "", 1, 0, 7, 0, 0, 0, nil, true
@@ -232,6 +232,54 @@ assert(not A.repostGroup(bg))
 A.me.rank = 0
 A.closeGroup(bg)
 assert(not A.repostGroup(bg))
+-- Issue #6: run the real offer button and deferred repaint with an enchantment (itemID 0).
+do
+    A.db.professions[A.self] = {list = {[333] = {recipes = {[7420] = 0, [1001] = 55}}}}
+    A.members.bob.online = true
+    local stamp = tostring(GetServerTime() * 100)
+    local id = "bob:" .. stamp
+    A.receiveOrder("OR", A.members.bob, id, "0", "7420", "0", "1", "0", "Enchant chest")
+    local order = assert(A.db.orders[id])
+    assert(A.canCraftOrder(order), "Known enchantment must be craftable")
+    assert(#A.listOrders() == 1, "Open enchantment must be listed")
+    TartaroWindow:Show()
+    for _, control in ipairs(objects) do
+        if control.kind == "Button" and control.value == "Profesiones" and control.parent == TartaroWindow then
+            control.scripts.OnClick(control)
+            break
+        end
+    end
+    click("Pedidos")
+    click("Puedo fabricarlo")
+    assert(not order.closed and not order.completed and A.db.offers[id][A.self])
+    local callbacks = deferred
+    deferred = {}
+    for _, callback in ipairs(callbacks) do callback() end
+    A.refresh()
+    local active = A.listOrders()
+    assert(#active == 1 and active[1] == order)
+    assert(find("FontString", "1 × Enchant chest"):IsShown())
+    assert(find("FontString", "Te ofreciste para fabricar este pedido."):IsShown())
+    assert(find("Button", "Susurrar al solicitante"):IsShown())
+    -- Duplicate offers, open replay and a close forged by a crafter cannot hide the card.
+    A.receiveOrder("OF", A.me, id)
+    A.receiveOrder("OR", A.members.bob, id, "0", "7420", "0", "1", "0", "Enchant chest")
+    A.receiveOrder("OR", A.me, id, "1", "7420", "0", "1", "0", "Enchant chest")
+    A.refresh()
+    assert(not A.db.orders[id].closed and #A.listOrders() == 1)
+    -- Roster absence hides a still-open record; restoring the owner restores its card.
+    local owner = A.members.bob
+    A.members.bob = nil
+    assert(#A.listOrders() == 0 and not A.db.orders[id].closed)
+    A.members.bob = owner
+    A.refresh()
+    assert(#A.listOrders() == 1 and find("FontString", "1 × Enchant chest"):IsShown())
+    -- An authenticated owner cancellation, unlike an offer, removes it from active orders.
+    A.receiveOrder("OR", owner, id, "1", "7420", "0", "1", "0", "Enchant chest")
+    A.refresh()
+    assert(A.db.orders[id].closed and #A.listOrders() == 0)
+    print("Issue #6 UI: itemID 0 offer remains visible after repaint and replay; owner closure and roster filtering verified.")
+end
 -- Losing eligibility closes active forms and cancels combat-resume flags.
 A.openDonationForm(1)
 TartaroDonationForm.resumeAfterCombat = true
