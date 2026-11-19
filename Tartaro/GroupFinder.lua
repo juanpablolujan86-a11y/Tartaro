@@ -3,6 +3,7 @@ A.groupCategories = {
     {key = "DUNGEON", label = "Mazmorra", categoryID = 2},
     {key = "RAID", label = "Banda (Raid)", categoryID = 3},
     {key = "BG", label = "BGs", categoryID = 8},
+    {key = "QUEST", label = "Quest (Misiones)"},
     {key = "OTHER", label = "Otros"},
 }
 
@@ -20,6 +21,21 @@ end
 
 function A.groupDestinations(key)
     local category = A.groupCategory(key)
+    if key == "QUEST" then
+        local list, seen = {}, {}
+        local api = C_QuestLog
+        local count = safe(api and api.GetNumQuestLogEntries)
+        for index = 1, type(count) == "number" and math.min(count, 1000) or 0 do
+            local info = safe(api.GetInfo, index)
+            if type(info) == "table" and not info.isHeader and type(info.questID) == "number"
+                and info.questID > 0 and type(info.title) == "string" and not seen[info.questID] then
+                seen[info.questID] = true
+                list[#list + 1] = {id = info.questID, name = info.title}
+            end
+        end
+        table.sort(list, function(left, right) return left.name < right.name end)
+        return list
+    end
     if not category or not category.categoryID then return {} end
     local api = C_LFGList
     local list, seen = {}, {}
@@ -91,6 +107,16 @@ function A.publishGroupSelection(key, destination, description, location, tanks,
     for index, count in ipairs(counts) do
         if count > 0 then needs[#needs + 1] = count .. " " .. A.eventRoles[A.eventRoleOrder[index]] end
     end
-    return A.publishGroup(category.label .. " · " .. activity, location, table.concat(needs, ", "),
+    local link
+    if key == "QUEST" then
+        link = safe(GetQuestLink, destination)
+        if type(link) ~= "string" or not link:find("|Hquest:" .. destination .. ":", 1, true)
+            or not link:find("|h", 1, true) or #link > 190 then
+            return nil, "El enlace de la misión todavía no está disponible. Volvé a intentarlo."
+        end
+    end
+    local group, err = A.publishGroup(category.label .. " · " .. activity, location, table.concat(needs, ", "),
         key == "BG" and {maximum = maximum, roles = counts} or nil)
+    if group then group.questLink = link end
+    return group, err
 end

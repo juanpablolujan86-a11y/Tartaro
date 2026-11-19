@@ -322,7 +322,7 @@ function A.professionItem(item)
     local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
     local name, quality, icon, binding
     if getInfo then
-        local ok, itemName, _, rarity, _, _, _, _, _, _, texture, _, _, bindType = pcall(getInfo, item)
+        local ok, itemName, _, rarity, _, _, _, _, _, _, texture, _, _, _, bindType = pcall(getInfo, item)
         if ok then name, quality, icon, binding = plain(itemName), plain(rarity), plain(texture), plain(bindType) end
     end
     if not name and not itemRequests[item] then

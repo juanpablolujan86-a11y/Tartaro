@@ -91,6 +91,23 @@ function A.publishGroup(activity, location, needs, slots)
     return A.groups[A.self]
 end
 
+function A.groupAnnouncementNeeds(group)
+    if not A.db or not group or group.owner ~= A.self or A.groups[A.self] ~= group
+        or group.version ~= 1 or group.when + groupLifetime <= GetServerTime()
+        or not A.can(A.me, "group") then
+        return nil, "La búsqueda ya no está activa o no tenés permiso para publicarla."
+    end
+    if not group.slots then return group.needs end
+    local counts = A.groupAttendance(group)
+    local needs = {}
+    for index, role in ipairs(A.eventRoleOrder) do
+        local missing = math.max(0, group.slots.roles[index] - counts[role])
+        if missing > 0 then needs[#needs + 1] = missing .. " " .. A.eventRoles[role] end
+    end
+    if #needs == 0 then return nil, "Los cupos de esta búsqueda ya están completos." end
+    return table.concat(needs, ", ")
+end
+
 function A.closeGroup(group)
     if not A.db or A.groups[A.self] ~= group or group.version ~= 1 then return end
     if A.send("GR", group.when, 2, group.activity, group.location, group.needs) then

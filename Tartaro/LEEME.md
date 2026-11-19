@@ -1,6 +1,32 @@
-# Tártaro 0.1.52 para WoW: Forever
+# Tártaro 0.1.54 para WoW: Forever
 
 Cerrá el juego y copiá la carpeta `Tartaro` a `_forever_/Interface/AddOns/` dentro de la instalación de World of Warcraft. Si ya lo tenés instalado, reemplazá los archivos de esa carpeta. El archivo `Tartaro.toc` debe quedar directamente dentro de la carpeta del addon. En la selección de personaje, verificá que **Tártaro** esté habilitado. Entrá con un personaje de la hermandad y hacé clic en el emblema del borde inferior izquierdo del minimapa. También podés escribir `/tartaro`.
+
+Esta versión es una candidata de pruebas. La presencia del código en GitHub no equivale a una release ni a una publicación en CurseForge. Las pruebas manuales/E2E pendientes se detallan más abajo. La publicación en CurseForge está aplazada por el propietario.
+
+## Hermandad y solicitudes de donación
+
+Tártaro solo funciona en una hermandad cuyo nombre sea exactamente **Tartaro**, en cualquier reino. Los datos se guardan por hermandad y reino. Fuera de ella, `/tartaro` muestra «Usted no está en la Guild Tartaro» y se suspenden las funciones y los mensajes del addon. Mientras el juego carga la pertenencia, muestra un estado de espera. Cambiar de hermandad cierra formularios y avisos pendientes sin borrar los datos guardados.
+
+En **Profesiones → Listar Solicitud de Donacion**, pulsá **Solicitar un material**, pegá el enlace del objeto e indicá una cantidad entera entre 1 y 1000000. No hace falta tenerlo en las bolsas. También podés pulsar **Solicitar** junto a un ingrediente en el detalle de una receta. Esto solicita el material, no la fabricación del producto final.
+
+Se admiten objetos identificados por el cliente como materiales de fabricación o presentes entre los ingredientes de recetas ya consultadas. Si faltan metadatos, se solicita su carga; esperá unos segundos y volvé a publicar. Si el cliente no marca un material antiguo como tal, consultá primero una receta que lo utilice. No se inventan categorías ni se admiten todos los objetos del juego.
+
+Cada personaje puede tener una sola solicitud activa por material. Otros personajes pueden solicitar el mismo material. La lista conserva las solicitudes recibidas aunque su autor esté desconectado. El solicitante puede cerrarlas; también vencen al cumplirse **7 días desde su creación**, según el reloj del servidor. Recibirlas de nuevo o usar `/reload` no renueva el plazo. Un cierre recibido prevalece sobre una copia activa anterior.
+
+Al pasar el mouse sobre un material, el tooltip añade **Solicitado como donación por:** con los nombres de quienes lo solicitan. Solo usa los datos locales; no envía mensajes por cada consulta. No automatiza correo, comercio ni entregas, y no deduce que recibiste materiales por cambios en tus bolsas.
+
+Las solicitudes y cierres se comparten por el mismo canal interno de hermandad. Para verificar la autoría, cada personaje retransmite sus propias solicitudes y cierres. Un cliente que nunca recibió una solicitud no puede recuperar la de un autor desconectado hasta que coincidan conectados. Publicar confirma que el mensaje entró en la cola, no que todos los miembros lo recibieron.
+
+## Misiones en Buscar grupo
+
+En tu búsqueda activa, **Volver a publicar** repite el anuncio en el chat de la hermandad. Conserva los participantes, cupos y vencimiento originales; no crea otra búsqueda. Para las BG anuncia únicamente los roles que aún faltan y no publica si los cupos ya están completos. Las misiones conservan su enlace. Solo puede hacerlo el organizador mientras mantenga el permiso para buscar grupo. Si el juego bloquea el envío, deja el mensaje preparado para enviarlo con Enter.
+
+**Quest (Misiones)** muestra las misiones disponibles en el diario del personaje. Seleccioná una, completá lugar y roles, y publicá. El anuncio de hermandad incluye el enlace nativo de la misión sin cortarlo. Al publicar se comprueba que la misión continúe en el diario. Si el cliente todavía no entrega el enlace, se informa y permite reintentar. No requiere Questie y no acepta ni comparte misiones automáticamente.
+
+## Verificación pendiente en el juego
+
+La compilación Lua 5.1, el XML y las pruebas con APIs simuladas cubren el acceso por hermandad, destinos de grupos, enlaces de misiones, formularios, autoría de donaciones, duplicados, cierres, vencimiento y tooltips. Falta comprobar las APIs y la presentación en el cliente real de Forever, con dos personajes, las bolsas utilizadas y los cambios durante combate. Estas pruebas locales no confirman la entrega real de mensajes ni la cobertura de todos los materiales y destinos del cliente.
 
 ## Primera prueba
 

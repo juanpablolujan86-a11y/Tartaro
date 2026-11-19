@@ -52,10 +52,21 @@ end
 
 local function roster()
     local guild, rankName, rank, realm = GetGuildInfo("player")
-    if not readable(guild) or not readable(rank) or not readable(rankName) or not readable(realm) then return end
-    if IsInGuild() and not guild then return end
+    local pending = not readable(guild) or not readable(rank) or not readable(rankName) or not readable(realm)
+        or IsInGuild() and not guild
+    A.guildStatus = pending and "pending" or guild == "Tartaro" and "allowed" or "denied"
+    if pending or guild ~= "Tartaro" then
+        A.guild, A.db, A.me = nil, nil, nil
+        A.members, A.ranks, memberAliases = {}, {}, {}
+        return
+    end
     local me, playerRealm = UnitFullName("player")
-    if not me then return end
+    if not readable(me) or not readable(playerRealm) or not me then
+        A.guildStatus = "pending"
+        A.guild, A.db, A.me = nil, nil, nil
+        A.members, A.ranks, memberAliases = {}, {}, {}
+        return
+    end
     A.realm = key(realm or playerRealm or GetNormalizedRealmName()) or ""
     local fullName = playerRealm and playerRealm ~= "" and me .. "-" .. playerRealm or me
     A.self = key(fullName)
@@ -227,7 +238,7 @@ local historyDays = 30 * 86400
 local addonActions = {Q = true, H = true, V = true, P = true, X = true, R = true, N = true, D = true, E = true, S = true, K = true,
     F = true, FQ = true, FM = true, FR = true, HP = true, CTA = true,
     CTX = true, CTJ = true, GR = true, OR = true, OF = true, OC = true, AQ = true,
-    GJ = true, GA = true}
+    GJ = true, GA = true, DQ = true, DN = true}
 
 function A.hasUsedAddon(member)
     return A.db and A.db.addonSeen[member.id] ~= nil
@@ -381,6 +392,12 @@ local function receive(message, sender)
     elseif action == "AQ" then
         A.syncOrders()
         return
+    elseif action == "DQ" then
+        A.syncDonations()
+        return
+    elseif action == "DN" then
+        A.receiveDonation(member, a, b, c, d)
+        return
     elseif action == "OR" or action == "OF" or action == "OC" then
         A.receiveOrder(action, member, a, b, c, d, e, f, g, h)
         return
@@ -524,16 +541,19 @@ end
 
 local function refreshRoster()
     local previous = A.guild
+    local previousStatus = A.guildStatus
     local members, ranks = A.members, A.ranks
     roster()
-    if A.guild ~= previous then
+    if A.guild ~= previous or A.guildStatus ~= previousStatus then
         queue, queued, A.positions, A.calls = {}, {}, {}, {}
         replayQueue, replayCursor, A.replayAfter = nil, nil, nil
         pendingLocation, retryLocationAt, lastLocationPacket = nil, nil, nil
         A.locationSent = nil
         A.resetActivities()
         A.resetOrders()
+        A.resetDonations()
         A.resetVersionNotice()
+        if A.resetGuildWindows then A.resetGuildWindows() end
         trim()
         request()
         A.requestOrders()
@@ -564,6 +584,7 @@ local function refreshRoster()
         for order in pairs(ranks) do if not A.ranks[order] then changed = true; break end end
     end
     if changed then
+        if A.invalidateDonations then A.invalidateDonations() end
         A.invalidateRecipeSearch()
         A.invalidate("roster")
         A.invalidateMap(true)

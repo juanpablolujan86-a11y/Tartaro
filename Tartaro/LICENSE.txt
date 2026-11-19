@@ -1,0 +1,11 @@
+Tártaro
+Copyright (c) 2026. Todos los derechos reservados.
+
+Se permite descargar, instalar y ejecutar este addon para su uso dentro del juego.
+No se concede permiso para redistribuir, modificar o comercializar su código sin
+autorización expresa de sus titulares.
+
+Este aviso corresponde al código del proyecto. No atribuye al proyecto derechos
+sobre recursos de terceros ni sustituye las condiciones que correspondan a dichos
+recursos. Las procedencias y autorizaciones de los recursos se documentan por
+separado en CREDITS.md.

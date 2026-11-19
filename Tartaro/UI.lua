@@ -343,7 +343,7 @@ editor:SetScript("OnHide", function()
     timeField:ClearFocus()
     detailField:ClearFocus()
     for _, fields in ipairs(editor.capFields) do fields[2]:ClearFocus() end
-    if editor.resumeAfterCombat then return end
+    if editor.resumeAfterCombat or not A.db or A.db ~= editingGuild then return end
     win:Show()
     A.refresh()
     A.showEventNotification()
@@ -385,13 +385,29 @@ local function announceEvent(event)
     announceGuild(prefix .. shortenChat(event.title, 250 - #prefix - #suffix) .. suffix, "El evento se guardó.")
 end
 
-local function announceGroup(group)
+local function announceGroup(group, remaining)
+    local needs = remaining or group.needs
+    if group.questLink then
+        local prefix, suffix = "[Tártaro] Busco grupo: ", ". Faltan: "
+        local budget = 250 - #prefix - #suffix - #group.questLink
+        announceGuild(prefix .. group.questLink .. suffix .. shortenChat(needs, budget),
+            "La búsqueda se publicó en Tártaro.")
+        return
+    end
     local format = "[Tártaro] Busco grupo para %s. Roles que faltan: %s."
-    local message = format:format(group.activity, group.needs)
+    local message = format:format(group.activity, needs)
     if #message > 250 then
-        message = format:format(shortenChat(group.activity, 100), shortenChat(group.needs, 100))
+        message = format:format(shortenChat(group.activity, 100), shortenChat(needs, 100))
     end
     announceGuild(message, "La búsqueda se publicó en Tártaro.")
+end
+
+function A.repostGroup(group)
+    if combatWindowsBlocked() then return nil, "Esperá a salir de combate para volver a publicar." end
+    local needs, err = A.groupAnnouncementNeeds(group)
+    if not needs then return nil, err end
+    announceGroup(group, needs)
+    return true
 end
 
 save:SetScript("OnClick", function()
@@ -1286,11 +1302,12 @@ recipeSearch:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 local recipeLabel = text(professionControls, "Receta, objeto o fabricante")
 recipeLabel:SetPoint("TOPLEFT", 1, -34)
 local professionButtons = {}
-for index, option in ipairs({{"recipes", "Buscar recetas"}, {"orders", "Pedidos"}}) do
+for index, option in ipairs({{"recipes", "Buscar recetas"}, {"orders", "Pedidos"},
+    {"donations", "Listar Solicitud de Donacion"}}) do
     local key = option[1]
     local control = copperButton(professionControls)
     control:SetPoint("TOPLEFT", (index - 1) * 141, 0)
-    control:SetSize(133, 26)
+    control:SetSize(index == 3 and 282 or 133, 26)
     control:SetText(option[2])
     control:SetScript("OnClick", function()
         professionView = key
@@ -1449,7 +1466,8 @@ do
         else selectedDestination = nil end
         destinationStatus:SetText(selectedCategory == "BG" and selected and selected.maximum
             and ("Máximo de la BG: " .. selected.maximum .. " jugadores.")
-            or #list == 0 and "El cliente no ofrece destinos ahora. Abrí el buscador del juego y volvé a intentar."
+            or #list == 0 and (selectedCategory == "QUEST" and "No hay misiones disponibles en tu diario."
+                or "El cliente no ofrece destinos ahora. Abrí el buscador del juego y volvé a intentar.")
             or "Destinos disponibles según el cliente.")
     end
     categoryButton:SetScript("OnClick", function(owner)
@@ -1567,6 +1585,94 @@ do
         for _, input in ipairs(inputs) do input[2]:ClearFocus() end
         description:ClearFocus()
         for _, input in ipairs(needsFields) do input:ClearFocus() end
+    end)
+end
+
+do
+    local form = surface("TartaroDonationForm", 440, 305, 25)
+    form:SetFrameStrata("FULLSCREEN_DIALOG")
+    tinsert(UISpecialFrames, "TartaroDonationForm")
+    local heading = text(form, "Solicitar donación", "GameFontNormalLarge")
+    heading:SetPoint("TOPLEFT", 16, -18)
+    local caption = text(form, "Enlace del material")
+    caption:SetPoint("TOPLEFT", 16, -58)
+    local link = CreateFrame("EditBox", nil, form, "InputBoxTemplate")
+    link:SetPoint("TOPLEFT", 22, -80)
+    link:SetSize(394, 26)
+    link:SetAutoFocus(false)
+    link:SetMaxLetters(400)
+    local amountCaption = text(form, "Cantidad solicitada")
+    amountCaption:SetPoint("TOPLEFT", 16, -125)
+    local quantity = CreateFrame("EditBox", nil, form, "InputBoxTemplate")
+    quantity:SetPoint("TOPLEFT", 22, -147)
+    quantity:SetSize(130, 26)
+    quantity:SetAutoFocus(false)
+    quantity:SetMaxLetters(7)
+    quantity:SetNumeric(true)
+    local status = text(form, "")
+    status:SetPoint("TOPLEFT", 16, -192)
+    status:SetWidth(405)
+    local publish = copperButton(form)
+    publish:SetText("Publicar solicitud")
+    publish:SetStyle(false, true)
+    publish:SetSize(190, 28)
+    publish:SetPoint("BOTTOMRIGHT", -16, 15)
+    local guild, selectedItem, ingredient
+    local function identify()
+        selectedItem = ingredient or tonumber(link:GetText():match("|Hitem:(%d+):"))
+        if not selectedItem then status:SetText("Pegá el enlace de un material de fabricación."); return end
+        local valid, err = A.donationMaterial(selectedItem)
+        status:SetText(valid and ((A.professionItem(selectedItem) or "Material") .. " · Vence en 7 días.") or err)
+    end
+    link:SetScript("OnTextChanged", function() ingredient = nil; identify() end)
+    for _, input in ipairs({link, quantity}) do
+        input:SetScript("OnEscapePressed", function() form:Hide() end)
+    end
+    form:SetScript("OnHide", function()
+        link:ClearFocus()
+        quantity:ClearFocus()
+        if not form.resumeAfterCombat and guild and A.db == guild then win:Show(); A.refresh() end
+    end)
+    function A.openDonationForm(item)
+        if not A.db or combatWindowsBlocked() then return end
+        guild = A.db
+        editor:Hide()
+        TartaroActivityForm:Hide()
+        link:SetText(item and (A.professionItem(item) or ("Material " .. item)) or "")
+        ingredient = item
+        quantity:SetText("1")
+        identify()
+        win:Hide()
+        form:Show()
+        form:Raise()
+    end
+    function A.closeDonationForm()
+        form.resumeAfterCombat = nil
+        guild, selectedItem, ingredient = nil, nil, nil
+        form:Hide()
+    end
+    function A.updateDonationCombat(blocked)
+        if blocked then
+            if form:IsShown() then form.resumeAfterCombat = true; form:Hide() end
+        elseif form.resumeAfterCombat then
+            form.resumeAfterCombat = nil
+            if A.db and A.db == guild then form:Show() end
+        end
+    end
+    publish:SetScript("OnClick", function()
+        if not guild or A.db ~= guild then A.closeDonationForm(); return end
+        local request, err = A.createDonation(ingredient or link:GetText(), quantity:GetText())
+        if not request then status:SetText(err); return end
+        form:Hide()
+        professionView = "donations"
+        scroll:SetVerticalScroll(0)
+        A.refresh()
+    end)
+    local events = CreateFrame("Frame")
+    events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+    events:SetScript("OnEvent", function()
+        if form:IsShown() and A.db == guild then identify() end
+        if A.db then A.invalidate("donations") end
     end)
 end
 
@@ -1922,7 +2028,7 @@ local function updatePage(first, last, count)
     nextPage:SetEnabled(recipePage < pages and count > 0)
 end
 
-local function recipeDetail(title, subtitle, texture, item, action, color)
+local function recipeDetail(title, subtitle, texture, item, action, color, actionLabel)
     local frame = row()
     if not frame.detail then
         local detail = CreateFrame("Frame", nil, frame)
@@ -1958,6 +2064,7 @@ local function recipeDetail(title, subtitle, texture, item, action, color)
     detail.meta:SetPoint("RIGHT", action and -105 or -9, 0)
     detail.meta:SetText(subtitle or "")
     detail.action:SetShown(action ~= nil)
+    detail.action:SetText(actionLabel or "Susurrar")
     detail.action:SetScript("OnClick", action)
     detail.item = item
     detail:EnableMouse(item ~= nil and item > 0)
@@ -1982,7 +2089,9 @@ local function renderRecipeDetails(selected)
         table.sort(ids)
         for _, item in ipairs(ids) do
             local name, _, texture = A.professionItem(item)
-            recipeDetail(name or ("Objeto " .. item), A.professionItemCount(item) .. "/" .. materials[item], texture, item)
+            local material = item
+            recipeDetail(name or ("Objeto " .. item), A.professionItemCount(item) .. "/" .. materials[item], texture, item,
+                function() A.openDonationForm(material) end, nil, "Solicitar")
         end
     end
     line("Fabricantes · " .. #selected.crafters, accent)
@@ -2085,6 +2194,27 @@ local function orderGrid(orders)
 end
 
 local function professions(onlyDetail)
+    if professionView == "donations" then
+        line("Solicitudes de donación", accent)
+        button("Solicitar un material", function() A.openDonationForm() end, true)
+        local requests = A.listDonations()
+        if #requests == 0 then line("No hay solicitudes activas.") end
+        for _, request in ipairs(requests) do
+            local selected = request
+            local member = A.members[request.owner]
+            local name = A.professionItem(request.item) or ("Objeto " .. request.item)
+            line(request.quantity .. " x " .. name, accent)
+            line(member.name .. " · " .. connection(member))
+            line("Vence: " .. date("%d/%m %H:%M", request.created + 7 * 86400))
+            if request.owner == A.self then
+                button("Cerrar solicitud", function()
+                    local ok, err = A.closeDonation(selected.id)
+                    if not ok and err then print("Tártaro: " .. err) end
+                end)
+            end
+        end
+        return
+    end
     if professionView == "orders" then
         line("Pedidos de fabricación", accent)
         local orders, completed = A.listOrders()
@@ -2149,6 +2279,11 @@ function A.renderGroups()
             end
         end
         if group.owner == A.self then
+            button("Volver a publicar", function()
+                local ok, err = A.repostGroup(group)
+                if not ok and err then print("Tártaro: " .. err) end
+                A.refresh()
+            end)
             button("Cerrar búsqueda", function() A.closeGroup(group) end)
         elseif not group.slots then
             if group.requestState then
@@ -2252,6 +2387,21 @@ for index, tab in ipairs(tabs) do
 end
 
 function A.refresh(detail)
+    if not A.db then
+        optionsPanel:Hide()
+        professionControls:Hide()
+        recipeList:Hide()
+        for _, frame in ipairs({editor, TartaroActivityForm, daily, eventPopup, callPopup}) do frame:Hide() end
+        callLauncher:Hide()
+        for _, frame in ipairs(rows) do frame:Hide() end
+        for _, frame in ipairs(orderCards) do frame:Hide() end
+        if win:IsShown() then
+            y, activeRows, column, columnWidth = 0, 0, 0, 570
+            line(A.guildStatus == "pending" and "Esperando los datos de la hermandad."
+                or "Usted no está en la Guild Tartaro")
+        end
+        return
+    end
     callLauncher:SetShown(A.can(A.me, "call"))
     if activeNotice and not noticeEvent(activeNotice) then eventPopup:Hide() end
     if callPopup:IsShown() and not currentCall() then callPopup:Hide() end
@@ -2358,6 +2508,7 @@ C_Timer.NewTicker(5, function()
         A.invalidate("events")
     end
     if page == "professions" and professionView == "orders" then A.invalidate("orders") end
+    if page == "professions" and professionView == "donations" then A.invalidate("donations") end
 end)
 
 local function toggle()
@@ -2442,7 +2593,20 @@ launcher:SetScript("OnEnter", function(self)
 end)
 launcher:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
+function A.resetGuildWindows()
+    pendingEvents, offeredEvents, scheduledReminders, activeNotice = {}, {}, {}, nil
+    dailyState = {dismissed = {}}
+    for _, frame in ipairs({win, editor, TartaroActivityForm, daily, eventPopup, callPopup}) do
+        frame.resumeAfterCombat = nil
+        frame:Hide()
+    end
+    if A.closeDonationForm then A.closeDonationForm() end
+    callLauncher:Hide()
+end
+
 function A.updateCombatWindows()
+    if not A.db then A.resetGuildWindows(); return end
+    if A.updateDonationCombat then A.updateDonationCombat(combatWindowsBlocked()) end
     if combatWindowsBlocked() then
         local form = TartaroActivityForm
         if form:IsShown() then form.resumeAfterCombat = true; form:Hide() end
@@ -2498,6 +2662,8 @@ StaticPopupDialogs["TARTARO_RESET_OPTIONS"] = {
         editor:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
         TartaroActivityForm:ClearAllPoints()
         TartaroActivityForm:SetPoint("CENTER", UIParent, "CENTER", 0, 25)
+        TartaroDonationForm:ClearAllPoints()
+        TartaroDonationForm:SetPoint("CENTER", UIParent, "CENTER", 0, 25)
         callMoved = nil
         positionCall()
         detectedFirst = nil
