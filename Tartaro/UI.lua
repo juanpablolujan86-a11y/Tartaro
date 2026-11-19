@@ -376,7 +376,7 @@ local function shortenChat(value, limit)
     if #value <= limit then return value end
     local cut = limit - 2
     while value:byte(cut) >= 128 and value:byte(cut) < 192 do cut = cut - 1 end
-    return value:sub(1, cut - 1) .. "…"
+    return value:sub(1, cut - 1) .. "..."
 end
 
 local function announceEvent(event)
@@ -1103,7 +1103,7 @@ do
     local preview = copperButton(optionsPanel)
     preview:SetPoint("LEFT", slider, "RIGHT", 17, 0)
     preview:SetSize(130, 28)
-    preview:SetText("▶ Probar")
+    preview:SetText("Probar sonido")
     preview:SetScript("OnClick", function()
         stopPreview()
         local played
@@ -1261,7 +1261,7 @@ local function members()
         local connection = member.online == true and "Conectado"
             or member.online == false and "Desconectado" or "Sin datos"
         memberRow({
-            member.name, member.level and tostring(member.level) or "—", A.roleLabel(role, member.class),
+            member.name, member.level and tostring(member.level) or "-", A.roleLabel(role, member.class),
             connection, detected and "Detectado" or "Sin detectar",
         }, index, role, member.online, detected, member.class)
     end
@@ -1432,12 +1432,12 @@ do
     local function syncGroupControls()
         local category = A.groupCategory(selectedCategory)
         local other = selectedCategory == "OTHER"
-        categoryButton:SetText(category.label .. "  ▾")
+        categoryButton:SetText(category.label)
         categoryButton:SetStyle(false)
         destinationLabel:SetText(other and "Actividad" or "Destino")
         destinationButton:SetShown(not other)
         description:SetShown(other)
-        destinationButton:SetText("Seleccionar destino  ▾")
+        destinationButton:SetText("Seleccionar destino")
         destinationButton:SetStyle(false)
         if other then destinationStatus:SetText(""); return end
         local list = A.groupDestinations(selectedCategory)
@@ -1445,7 +1445,7 @@ do
         for _, entry in ipairs(list) do
             if entry.id == selectedDestination then selected = entry; break end
         end
-        if selected then destinationButton:SetText(selected.name .. "  ▾")
+        if selected then destinationButton:SetText(selected.name)
         else selectedDestination = nil end
         destinationStatus:SetText(#list == 0 and "El cliente no ofrece destinos ahora. Abrí el buscador del juego y volvé a intentar."
             or "Destinos disponibles según el cliente.")
@@ -1857,7 +1857,7 @@ local function pageButton(label, offset, delta)
     control:SetScript("OnClick", function() changePage(delta) end)
     return control
 end
-local previousPage, nextPage = pageButton("‹", -55, -1), pageButton("›", -14, 1)
+local previousPage, nextPage = pageButton("<", -55, -1), pageButton(">", -14, 1)
 
 local function itemHover(frame, item)
     if not item or item == 0 then return end
@@ -1915,7 +1915,7 @@ end
 
 local function updatePage(first, last, count)
     for index = last - first + 2, #recipeRows do recipeRows[index]:Hide() end
-    pageLabel:SetText(count > 0 and (first .. "–" .. last .. " de " .. count .. " recetas") or "Sin recetas")
+    pageLabel:SetText(count > 0 and (first .. "-" .. last .. " de " .. count .. " recetas") or "Sin recetas")
     previousPage:SetEnabled(recipePage > 1 and count > 0)
     nextPage:SetEnabled(recipePage < pages and count > 0)
 end
@@ -2183,7 +2183,7 @@ local function honorRanking()
     for index, entry in ipairs(ranking) do
         if entry.score ~= previous then position, previous = index, entry.score end
         local name = entry.member.name .. (entry.member.id == A.self and " (vos)" or "")
-        honorRow({entry.score > 0 and tostring(position) or "—", name,
+        honorRow({entry.score > 0 and tostring(position) or "-", name,
             week and formatPoints(entry.weekly) or "Sin datos", formatPoints(entry.total)},
             entry.score > 0 and position == 1 and accent or nil)
     end

@@ -23,6 +23,20 @@ function A.groupDestinations(key)
     if not category or not category.categoryID then return {} end
     local api = C_LFGList
     local list, seen = {}, {}
+    if key == "BG" then
+        local count = safe(GetNumBattlegroundTypes)
+        for index = 1, type(count) == "number" and math.min(count, 100) or 0 do
+            local info = safe(C_PvP and C_PvP.GetBattlegroundInfo, index)
+            local name = type(info) == "table" and safe(function() return info.name end)
+            name = name or safe(GetBattlegroundInfo, index)
+            if type(name) == "string" and name ~= "" and not seen[name] then
+                seen[name] = true
+                list[#list + 1] = {id = "bg:" .. name, name = name}
+            end
+        end
+        table.sort(list, function(left, right) return left.name < right.name end)
+        return list
+    end
     local function collect()
         local ids = safe(api and api.GetAvailableActivities, category.categoryID, nil, 0)
         for _, id in ipairs(type(ids) == "table" and ids or {}) do

@@ -1,4 +1,4 @@
-# Tártaro 0.1.50 para WoW: Forever
+# Tártaro 0.1.51 para WoW: Forever
 
 Cerrá el juego y copiá la carpeta `Tartaro` a `_forever_/Interface/AddOns/` dentro de la instalación de World of Warcraft. Si ya lo tenés instalado, reemplazá los archivos de esa carpeta. El archivo `Tartaro.toc` debe quedar directamente dentro de la carpeta del addon. En la selección de personaje, verificá que **Tártaro** esté habilitado. Entrá con un personaje de la hermandad y hacé clic en el emblema del borde inferior izquierdo del minimapa. También podés escribir `/tartaro`.
 
@@ -27,7 +27,7 @@ Podés arrastrar el botón de Tártaro con el botón izquierdo para cambiarlo de
 17. Seleccioná una receta y pulsá **Lo necesito fabricar**. Indicá la cantidad y si ya tenés materiales. En **Profesiones → Pedidos**, un miembro que tenga la receta cargada puede ofrecerse. El solicitante puede susurrarle, marcar el pedido como completado o cancelarlo. Los pedidos duran siete días. Si te llega una copia antes que el mensaje del solicitante, aparece como **Copia pendiente de confirmar** hasta que el addon reciba el pedido directamente de su autor. Al actualizar a 0.1.43 puede hacer falta volver a ofrecerse en pedidos anteriores, porque esas ofertas se guardaron sin poder confirmar el remitente.
 18. En **Buscar grupo**, publicá una actividad con lugar y roles. El chat de la hermandad recibe la actividad y los roles que faltan. Si WoW bloquea el envío, presioná Enter en el borrador. Desde otro personaje usá **Pedir grupo** y comprobá que llegue el susurro o se abra el borrador. El aviso dura 30 minutos o hasta que lo cierres.
 19. Después de un **Llamado a las armas**, abrí **Mapa** en Tártaro para ver quién pidió grupo. Cerrá el llamado y verificá con el otro miembro que desaparezcan su aviso y su marcador.
-20. En **Opciones**, mové el control **Volumen del llamado** y pulsá **▶ Probar** para escuchar los tambores y el doble grito al nivel elegido. El ajuste se guarda entre sesiones. Llevá el control a cero para silenciar la alerta.
+20. En **Opciones**, mové el control **Volumen del llamado** y pulsá **Probar sonido** para escuchar los tambores y el doble grito al nivel elegido. El ajuste se guarda entre sesiones. Llevá el control a cero para silenciar la alerta.
 21. Al confirmar un **Llamado a las armas**, Tártaro publica en el chat de la hermandad el mismo pedido de refuerzos, con zona y coordenadas. Si el juego bloquea el envío automático, el mensaje queda preparado para enviarlo con Enter.
 22. Arrastrá **Llamado a las armas** con el clic izquierdo para mover el botón. La posición se guarda entre sesiones. Un clic corto abre la confirmación del llamado.
 23. En **Opciones**, **Restablecer configuración** recupera las posiciones y preferencias personales. Los datos compartidos de la hermandad se conservan. Las ventanas están ocultas durante el combate por defecto y podés cambiarlo desde Opciones. Cuando coinciden, el mensaje del día queda arriba, el aviso de evento en el medio y la ventana principal abajo.
@@ -35,10 +35,11 @@ Podés arrastrar el botón de Tártaro con el botón izquierdo para cambiarlo de
 25. **Permisos → Publicar búsquedas de grupo** habilita esa acción por rango. Está activo por defecto y se ajusta por separado de avisos, eventos y llamados a las armas. La versión instalada figura en **Opciones**.
 26. Al recibir un llamado con sonido habilitado, Tártaro silencia temporalmente los efectos, la música, el ambiente y los diálogos de WoW. Al terminar el MP3 recupera el volumen anterior de cada categoría.
 27. Arrastrá el mensaje del día o el aviso de evento con clic izquierdo. Si hay varias ventanas apiladas, se mueven juntas y conservan el orden. La posición se guarda entre sesiones.
-28. **Profesiones → Pedidos** muestra dos pedidos por fila. En **Opciones** podés elegir **Tambores y doble grito** o **Nature** y escuchar la selección con **▶ Probar**. El sonido original es el predeterminado.
+28. **Profesiones → Pedidos** muestra dos pedidos por fila. En **Opciones** podés elegir **Tambores y doble grito** o **Nature** y escuchar la selección con **Probar sonido**. El sonido original es el predeterminado.
 29. Si Tártaro recibe una versión más nueva desde otro miembro de la hermandad, muestra un aviso en el chat y la versión detectada en **Opciones**. Para compartir su versión, ambos miembros necesitan 0.1.46 o posterior.
 30. Quienes pueden editar eventos pueden hacer clic sobre el nombre de un inscrito para invitarlo al grupo o a la banda activa. Cuando ya lideran un grupo, el menú también permite convertirlo en banda.
 31. **Buscar grupo** permite elegir **Mazmorra**, **Banda (Raid)**, **BGs** u **Otros**. Los destinos vienen de las actividades que ofrece el cliente del juego y pueden variar según el personaje. Si no hay datos, se informa en el formulario. **Otros** admite texto libre. Completá **Lugar** y cuántos tanques, sanadores y DPS faltan. Vacío o cero indica que no falta ese rol y debe faltar entre 1 y 40 jugadores en total.
+32. El selector de **BGs** lee la lista de campos de batalla del cliente, con nombres como Cuenca de Arathi. Los botones usan texto y signos básicos para evitar símbolos que la fuente muestre como cuadrados.
 
 El addon usa la conexión de WoW y guarda una copia local de los datos. Para recuperar un cambio que hiciste mientras otra persona estaba desconectada, tendrán que coincidir conectados con el addon. Cada copia retransmite sus propios cambios para que los receptores puedan verificar quién los hizo.
 
