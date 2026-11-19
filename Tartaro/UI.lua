@@ -1401,6 +1401,7 @@ do
     local destinationButton = copperButton(groupControls)
     destinationButton:SetPoint("TOPLEFT", 16, -132)
     destinationButton:SetSize(376, 27)
+    destinationButton:SetText("Seleccionar destino")
     destinationButton:GetFontString():SetWidth(352)
     destinationButton:GetFontString():SetMaxLines(1)
     local description = CreateFrame("EditBox", nil, groupControls, "InputBoxTemplate")
