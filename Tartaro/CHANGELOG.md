@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.1.55 — prueba de replicación
+
+- Caché y retransmisión de eventos e inscripciones con el mismo ID, aunque el creador esté desconectado y el miembro que conserva la copia no se haya anotado.
+- Copias compartidas identificadas, sin sobrescribir datos confirmados ni suplantar acciones del autor. Los pedidos de fabricación compartidos siguen pendientes de confirmación directa para ofrecerse.
+- Persistencia y retransmisión de pedidos y donaciones compartidos, con registros de cierre para evitar reactivaciones antiguas.
+- Edición y eliminación de eventos limitadas a creador, líder y sublíderes, tanto en UI como en mensajes recibidos.
+- Prueba local con entrega duplicada, recarga de datos, varios saltos entre miembros y 180 eventos. Pendiente de validación manual de esta versión en Forever; no resuelve ni cierra el issue #6.
+
 ## 0.1.54
 
 - Buscar grupo: botón **Volver a publicar** para repetir el anuncio sin reiniciar vencimiento, participantes o cupos. Las BG anuncian los roles que aún faltan; las misiones conservan su enlace.

@@ -28,7 +28,7 @@ try:
         lua.lua_settop(state, 0)
         assert not any(ord(c) > 255 for c in source.decode("utf-8-sig")), f"Unsupported glyph: {path}"
     ET.parse(ROOT / "Tartaro/MapPin.xml")
-    for name in ["issues.lua", "ui.lua", "orders_flow.lua"]:
+    for name in ["issues.lua", "ui.lua", "orders_flow.lua", "replication.lua"]:
         path = ROOT / "tests" / name
         if not path.exists():
             continue

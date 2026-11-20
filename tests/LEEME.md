@@ -28,3 +28,5 @@ Escenarios manuales: el propietario confirmó el 19/11/2026 que las pruebas de #
 El propietario autorizó subir el código a GitHub después de las verificaciones locales. Esto no autoriza cerrar issues con pruebas reales pendientes ni publicar en CurseForge. Las instrucciones persistentes están en AGENTS.md y el estado de cada issue en distribution/ISSUES.md.
 
 El empaquetado se comprueba con `python tests/test_package.py` y `python tools/package_addon.py --build`. El último genera el ZIP y un informe local con hashes, sin publicar nada. El informe se excluye de Git para no presentar el estado de una copia modificada como evidencia de un commit posterior.
+
+La prueba nueva de replicación de **0.1.55** está documentada en REPLICATION.md. Usa módulos reales y transporte simulado duplicado; la validación manual anterior de 0.1.54 no certifica estos cambios.

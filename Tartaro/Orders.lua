@@ -34,6 +34,15 @@ function A.resetOrders()
     previews, pendingOffers = {}, {}
     if not A.db then return end
     A.db.orders, A.db.offers = A.db.orders or {}, A.db.offers or {}
+    A.db.orderPreviews = A.db.orderPreviews or {}
+    A.db.orderCopyClosed = A.db.orderCopyClosed or {}
+    previews = A.db.orderPreviews
+    for _, data in ipairs({previews, A.db.orderCopyClosed}) do
+        for id in pairs(data) do
+            local stamp = id:match(":(%d+)$")
+            if not stamp or math.floor(tonumber(stamp) / 100) + orderLifetime <= GetServerTime() then data[id] = nil end
+        end
+    end
     for id in pairs(A.db.orders) do
         local stamp = id:match(":(%d+)$")
         if not stamp or math.floor(tonumber(stamp) / 100) + orderLifetime <= GetServerTime() then
@@ -95,7 +104,7 @@ local function applyOrder(order, closed, completed)
 end
 
 function A.receiveOrder(action, member, a, b, c, d, e, f, g, h)
-    if action == "OR" or action == "OC" then
+    if action == "OR" or action == "OC" or action == "OX" then
         local owner, created = orderOwner(a)
         local spell, item, quantity = integer(c, 1, 2147483647), integer(d, 0, 2147483647), integer(e, 1, 999)
         local old = a and A.db.orders[a]
@@ -105,11 +114,18 @@ function A.receiveOrder(action, member, a, b, c, d, e, f, g, h)
         local order = {id = a, owner = owner, created = created,
             spell = spell, item = item, quantity = quantity, materials = f == "1", name = A.clean(g)}
         if order.name == "" then return end
-        if action == "OC" then
-            if b ~= "0" or owner == A.self or owner == member.id then return end
+        if action == "OX" then
+            if b ~= "1" or owner == A.self or owner == member.id then return end
+            order.closed, order.completed = true, completed
+            A.db.orderCopyClosed[a] = order
+            previews[a] = nil
+            A.invalidate("orders")
+            return
+        elseif action == "OC" then
+            if b ~= "0" or owner == A.self or owner == member.id or A.db.orderCopyClosed[a] then return end
             if heard then heard[table.concat(previewPacket(order), "\t")] = true end
             if old or previews[a] then return end
-            order.unverified = true
+            order.unverified, order.sharedBy = true, member.id
             previews[a] = order
             A.invalidate("orders")
             return
@@ -180,7 +196,7 @@ function A.listOrders()
         end
     end
     for id, order in pairs(previews) do
-        if orderOwner(id) then active[#active + 1] = order else previews[id] = nil end
+        if orderOwner(id) then active[#active + 1] = order end
     end
     local function newest(left, right)
         return left.created > right.created or left.created == right.created and left.id > right.id
@@ -210,7 +226,23 @@ function A.syncOrders()
                 pending[#pending + 1] = orderPacket(order)
             elseif not order.closed then
                 pending[#pending + 1] = previewPacket(order)
+            else
+                local packet = orderPacket(order)
+                packet[1] = "OX"
+                pending[#pending + 1] = packet
             end
+        end
+    end
+    for id, order in pairs(previews) do
+        if not A.db.orders[id] and not A.db.orderCopyClosed[id] and orderOwner(id) then
+            pending[#pending + 1] = previewPacket(order)
+        end
+    end
+    for id, order in pairs(A.db.orderCopyClosed) do
+        if type(order) == "table" and not A.db.orders[id] and orderOwner(id) then
+            local packet = orderPacket(order)
+            packet[1] = "OX"
+            pending[#pending + 1] = packet
         end
     end
     for id, offers in pairs(A.db.offers) do
@@ -225,10 +257,12 @@ C_Timer.NewTicker(0.7, function()
     if not pending or GetTime() < syncAt then return end
     local packet = pending[cursor]
     while packet do
-        local order = A.db.orders[packet[2]]
+        local order = A.db.orders[packet[2]] or previews[packet[2]] or A.db.orderCopyClosed[packet[2]]
         if order and orderOwner(order.id) then
             if packet[1] == "OR" and order.owner == A.self then
                 packet = orderPacket(order)
+                break
+            elseif packet[1] == "OX" and order.closed then
                 break
             elseif not order.closed and not heard[table.concat(packet, "\t")] then
                 break

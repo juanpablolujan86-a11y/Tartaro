@@ -39,6 +39,16 @@ function A.canManagePermissions(member)
     return A.db ~= nil and member ~= nil and (member.rank == 0 or member.rank == 1)
 end
 
+function A.eventOwner(event)
+    local id = type(event) == "table" and event.id or event
+    return type(id) == "string" and id:match("^(.+):%d+$") or nil
+end
+
+function A.canEditEvent(member, event)
+    return A.db ~= nil and member ~= nil and
+        (member.rank == 0 or member.rank == 1 or A.eventOwner(event) == member.id) or false
+end
+
 function A.can(member, permission)
     if not member or not A.db then return false end
     if member.rank == 0 then return true end
@@ -238,7 +248,7 @@ local historyDays = 30 * 86400
 local addonActions = {Q = true, H = true, V = true, P = true, X = true, R = true, N = true, D = true, E = true, S = true, K = true,
     F = true, FQ = true, FM = true, FR = true, HP = true, CTA = true,
     CTX = true, CTJ = true, GR = true, OR = true, OF = true, OC = true, AQ = true,
-    GJ = true, GA = true, DQ = true, DN = true}
+    GJ = true, GA = true, DQ = true, DN = true, DC = true, RP = true, OX = true}
 
 function A.hasUsedAddon(member)
     return A.db and A.db.addonSeen[member.id] ~= nil
@@ -262,20 +272,19 @@ local function replay()
             if validRevision(grant.rev) then packets[#packets + 1] = grantPacket(order, grant) end
         end
     end
-    local canEdit = A.can(A.me, "event")
-    if canEdit then
+    do
         for id, deletion in pairs(A.db.deletedEvents) do
             if deletion.author == A.self and validRevision(deletion.rev) then
                 packets[#packets + 1] = {"K", id, deletion.rev, deletion.when}
             end
         end
         for _, event in pairs(A.db.events) do
-            if event.editor == A.self and validRevision(event.rev) then packets[#packets + 1] = eventPacket(event) end
+            if not event.shared and event.editor == A.self and validRevision(event.rev) then packets[#packets + 1] = eventPacket(event) end
         end
     end
     for id in pairs(A.db.events) do
         local signup = A.db.signups[id] and A.db.signups[id][A.self]
-        if signup and validRevision(signup.rev) then
+        if signup and not signup.shared and validRevision(signup.rev) then
             packets[#packets + 1] = {"S", id, signup.rev, signup.joined and 1 or 0, signup.role or ""}
         end
     end
@@ -286,6 +295,7 @@ local function replay()
             if notice.author == A.self then packets[#packets + 1] = {"N", id, notice.when, notice.text} end
         end
     end
+    if A.addSharedReplay then A.addSharedReplay(packets, eventPacket) end
     if #packets > 0 then replayQueue, replayCursor = packets, 1 end
 end
 
@@ -338,6 +348,9 @@ local function receive(message, sender)
                 if A.guild == guild then replay() end
             end)
         end
+        return
+    elseif action == "RP" then
+        if A.receiveSharedPart then A.receiveSharedPart(member, a, b, c, d) end
         return
     elseif action == "FQ" then
         A.shareProfessions()
@@ -395,10 +408,10 @@ local function receive(message, sender)
     elseif action == "DQ" then
         A.syncDonations()
         return
-    elseif action == "DN" then
-        A.receiveDonation(member, a, b, c, d)
+    elseif action == "DN" or action == "DC" then
+        A.receiveDonation(member, a, b, c, d, action == "DC")
         return
-    elseif action == "OR" or action == "OF" or action == "OC" then
+    elseif action == "OR" or action == "OF" or action == "OC" or action == "OX" then
         A.receiveOrder(action, member, a, b, c, d, e, f, g, h)
         return
     elseif action == "CTX" or action == "CTJ" or action == "GR" then
@@ -417,13 +430,14 @@ local function receive(message, sender)
         if not newer(A.db.daily, rev, author, "author") then return end
         A.db.daily = { author = author, rev = rev, text = clean(b) }
         observeRevision(rev)
-    elseif action == "E" and a and A.can(member, "event") then
+    elseif action == "E" and a and A.canEditEvent(member, a) then
         local eventRev, when = tonumber(b), tonumber(c)
         local old = A.db.events[a]
         local deletion = A.db.deletedEvents[a]
+        if not old and member.rank ~= 0 and member.rank ~= 1 and not A.can(member, "event") then return end
         if not validRevision(eventRev) or not validEventTime(when)
             or when < GetServerTime() - historyDays or not A.kinds[d] or not e or e == "" or f == nil
-            or deletion and validRevision(deletion.rev) or not newer(old, eventRev, author, "editor") then return end
+            or deletion and validRevision(deletion.rev) or old and not old.shared and not newer(old, eventRev, author, "editor") then return end
         A.db.deletedEvents[a] = nil
         local flag, tanks, healers, damage = (g or ""):match("^(%u*):(%d+):(%d+):(%d+)$")
         local caps = flag and A.eventCaps(tanks, healers, damage)
@@ -434,7 +448,7 @@ local function receive(message, sender)
             local isNew = (flag or g) == "NEW" and ownId(a, author) and math.abs(now - math.floor(eventRev / 100)) <= 120
             A.notifyEvent(a, isNew)
         end
-    elseif action == "K" and a and A.can(member, "event") then
+    elseif action == "K" and a and A.canEditEvent(member, a) then
         local deleteRev, when = tonumber(b), tonumber(c)
         local deletedAt = deleteRev and math.floor(deleteRev / 100)
         if not validRevision(deleteRev) or not validEventTime(when)
@@ -447,7 +461,7 @@ local function receive(message, sender)
         local signupRev = tonumber(b)
         local signups = A.db.signups[a] or {}
         local previous = signups[author]
-        if not validRevision(signupRev) or previous and validRevision(previous.rev) and previous.rev >= signupRev then return end
+        if not validRevision(signupRev) or previous and not previous.shared and validRevision(previous.rev) and previous.rev >= signupRev then return end
         A.db.signups[a] = signups
         signups[author] = { rev = signupRev, joined = c == "1", name = member.name, role = A.eventRoles[d] and d or nil }
     else
@@ -462,7 +476,9 @@ end
 A.kinds = { BG = "Campos de batalla", RAID = "Raid", PVP = "PvP mundial", OTHER = "Otro" }
 
 function A.saveEvent(id, when, kind, title, detail, caps)
-    if not A.can(A.me, "event") then return nil, "Tu rango no puede editar eventos." end
+    if not (id and A.canEditEvent(A.me, id) or not id and A.can(A.me, "event")) then
+        return nil, "Solo el creador, el líder y los sublíderes pueden editar este evento."
+    end
     if id and not A.db.events[id] then return nil, "El evento ya no está disponible." end
     if not validEventTime(when) or when <= GetServerTime() then return nil, "Ingresá una fecha y hora futuras." end
     title, detail = clean(title), clean(detail)
@@ -477,7 +493,7 @@ function A.saveEvent(id, when, kind, title, detail, caps)
 end
 
 function A.deleteEvent(id)
-    if not A.can(A.me, "event") then return nil, "Tu rango no puede eliminar eventos." end
+    if not A.canEditEvent(A.me, id) then return nil, "No tenés permiso para eliminar este evento." end
     local event = A.db.events[id]
     if not event then return nil, "El evento ya no está disponible." end
     local rev = revision()
@@ -552,6 +568,7 @@ local function refreshRoster()
         A.resetActivities()
         A.resetOrders()
         A.resetDonations()
+        if A.resetSharedTransfers then A.resetSharedTransfers() end
         A.resetVersionNotice()
         if A.resetGuildWindows then A.resetGuildWindows() end
         trim()

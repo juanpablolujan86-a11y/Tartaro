@@ -1,8 +1,20 @@
-# Tártaro 0.1.54 para WoW: Forever
+# Tártaro 0.1.55 para WoW: Forever — prueba de replicación
 
 Cerrá el juego y copiá la carpeta `Tartaro` a `_forever_/Interface/AddOns/` dentro de la instalación de World of Warcraft. Si ya lo tenés instalado, reemplazá los archivos de esa carpeta. El archivo `Tartaro.toc` debe quedar directamente dentro de la carpeta del addon. En la selección de personaje, verificá que **Tártaro** esté habilitado. Entrá con un personaje de la hermandad y hacé clic en el emblema del borde inferior izquierdo del minimapa. También podés escribir `/tartaro`.
 
-Las pruebas manuales de los issues #1–#4 fueron confirmadas por el propietario el 19/11/2026. Las verificaciones locales se describen más abajo. La publicación en CurseForge sigue aplazada.
+La replicación de 0.1.55 pasó pruebas simuladas y está pendiente de prueba manual en Forever. La confirmación anterior de pruebas manuales de #1–#4 corresponde a 0.1.54, no certifica este cambio. La publicación en CurseForge sigue aplazada.
+
+## Replicación con el autor desconectado
+
+Todos los miembros que reciben un evento conservan su copia en TartaroDB, se hayan anotado o no. Otro miembro puede recuperarla con el creador desconectado. Se conserva el identificador original: anotarse registra al personaje en ese mismo evento y los reenvíos no crean otro evento ni duplican participantes.
+
+Los eventos, inscripciones y solicitudes recibidos por retransmisión se distinguen como **copias compartidas**. No equivalen a cambios autenticados del creador: una copia nunca sobrescribe un registro confirmado. Los cambios confirmados llegan directamente del actor autorizado. Esto puede dejar un registro confirmado antiguo hasta que vuelva ese actor; el canal del juego no permite demostrar la autoría de un paquete reenviado por un tercero. No hay firmas digitales ni servidor externo. Las inscripciones recibidas directamente pertenecen al personaje que envía el mensaje; sus copias se conservan por personaje y revisión.
+
+**Solo el creador, el líder y los sublíderes pueden modificar o eliminar un evento**, aunque otro rango tenga permiso para crear eventos. La UI y la recepción de mensajes aplican esa regla. El creador se identifica por el ID original, no por quien compartió la copia.
+
+Los pedidos de fabricación retransmitidos siguen visibles como **Copia pendiente de confirmar** y se guardan entre sesiones. Para ofrecerse a fabricarlos todavía se necesita confirmación directa del solicitante. Las solicitudes de donación también se retransmiten y sus copias se identifican en lista y tooltip. Los cierres y cancelaciones conservan registros que impiden reactivar copias antiguas. Guardar una copia no concede permiso para editarla o cerrarla en nombre de otro.
+
+Para probar: actualizar todos los participantes a 0.1.55, crear evento y pedidos en A, dejar que B los reciba sin anotarse y desconectar A. Entrar con C sin esos datos: comprobar que recupera el mismo evento, se anota y B ve una sola inscripción. Repetir la sincronización y reload; comprobar que no se duplican. Volver con A para cancelar/cerrar y comprobar la retirada y la recuperación de esos cierres en un nuevo cliente. Si no hay ningún miembro conectado con una copia, no hay datos que recuperar.
 
 ## Hermandad y solicitudes de donación
 
@@ -16,7 +28,7 @@ Cada personaje puede tener una sola solicitud activa por material. Otros persona
 
 Al pasar el mouse sobre un material, el tooltip añade **Solicitado como donación por:** con los nombres de quienes lo solicitan. Solo usa los datos locales; no envía mensajes por cada consulta. No automatiza correo, comercio ni entregas, y no deduce que recibiste materiales por cambios en tus bolsas.
 
-Las solicitudes y cierres se comparten por el mismo canal interno de hermandad. Para verificar la autoría, cada personaje retransmite sus propias solicitudes y cierres. Un cliente que nunca recibió una solicitud no puede recuperar la de un autor desconectado hasta que coincidan conectados. Publicar confirma que el mensaje entró en la cola, no que todos los miembros lo recibieron.
+Las solicitudes y cierres se comparten por el mismo canal interno de hermandad, con distinción entre datos directos y copias compartidas. Publicar confirma que el mensaje entró en la cola, no que todos los miembros lo recibieron.
 
 ## Misiones en Buscar grupo
 
@@ -68,6 +80,6 @@ Podés arrastrar el botón de Tártaro con el botón izquierdo para cambiarlo de
 32. El selector de **BGs** lee la lista de campos de batalla del cliente, con nombres como Cuenca de Arathi. Los botones usan texto y signos básicos para evitar símbolos que la fuente muestre como cuadrados.
 33. En una búsqueda de BG, los cupos no pueden superar la capacidad que informa el cliente. Cada miembro se anota como tanque, sanador o DPS y el organizador confirma las inscripciones en orden de llegada. Los roles completos dejan de admitir inscripciones. Se cuentan las inscripciones del addon, incluido el organizador si se anota. Quitar una inscripción libera el cupo. El organizador debe estar conectado con esta versión para confirmar. **Pedir invitación** abre la coordinación con el organizador tras anotarte.
 
-El addon usa la conexión de WoW y guarda una copia local de los datos. Para recuperar un cambio que hiciste mientras otra persona estaba desconectada, tendrán que coincidir conectados con el addon. Cada copia retransmite sus propios cambios para que los receptores puedan verificar quién los hizo.
+El addon usa la conexión de WoW y guarda una copia local de los datos. Los miembros actualizados retransmiten eventos, inscripciones y solicitudes recibidos, con las limitaciones de confirmación indicadas al principio. Avisos y mensaje del día conservan su sincronización anterior por el autor; esta prueba no cambia esos módulos.
 
 Cuando el juego ofrece coordenadas válidas al aire libre, Tártaro envía la ubicación cada dos segundos si el personaje se mueve y cada ocho si está quieto. El mapa nativo y OpenMap muestran un punto del color de clase, con tamaño fijo al hacer zoom. La última posición recibida se conserva hasta 75 segundos para tolerar interrupciones breves. Si el compañero apaga el envío y el aviso llega, su marcador se retira en el momento.

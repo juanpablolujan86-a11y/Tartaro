@@ -55,7 +55,7 @@ function A.listDonations()
     return result
 end
 
-function A.receiveDonation(member, id, item, quantity, closed)
+function A.receiveDonation(member, id, item, quantity, closed, shared)
     local list = records()
     if not list or type(id) ~= "string" or #id > 110 then return end
     local owner, stamp = id:match("^(.+):(%d+)$")
@@ -63,17 +63,20 @@ function A.receiveDonation(member, id, item, quantity, closed)
     local created = stamp and math.floor(stamp / 100)
     item, quantity = integer(item, 2147483647), integer(quantity, 1000000)
     local now = GetServerTime()
-    if not member or owner ~= member.id or not A.members[owner] or not item or not quantity
+    if not member or not A.members[owner] or not item or not quantity
+        or not shared and owner ~= member.id or shared and (owner == member.id or owner == A.self)
         or not created or created > now + 60 or created + lifetime <= now
         or closed ~= "0" and closed ~= "1" then return end
     local old = list[id]
+    if shared and old and not old.unverified then return end
+    if not shared and old and old.unverified then list[id], old = nil, nil end
     if old then
         if old.item ~= item or old.quantity ~= quantity or old.closed or closed == "0" then return end
         old.closed = true
     else
         -- Keep closure tombstones even when the original request has not arrived yet.
         local request = {id = id, owner = owner, item = item, quantity = quantity,
-            created = created, closed = closed == "1"}
+            created = created, closed = closed == "1", unverified = shared == true, sharedBy = shared and member.id or nil}
         if not request.closed then
             for _, other in pairs(list) do
                 if other.owner == owner and other.item == item and active(other, now) then return end
@@ -118,8 +121,10 @@ function A.syncDonations()
     syncAt = GetTime() + 10
     outgoing, cursor = {db = A.db}, 1
     for _, request in pairs(records()) do
-        if request.owner == A.self and request.created + lifetime > GetServerTime() then
-            outgoing[#outgoing + 1] = packet(request)
+        if request.created + lifetime > GetServerTime() then
+            local data = packet(request)
+            if request.owner ~= A.self or request.unverified then data[1] = "DC" end
+            outgoing[#outgoing + 1] = data
         end
     end
 end
@@ -147,6 +152,7 @@ function A.donationNames(item)
                 seen[token] = true
                 index[request.item] = index[request.item] or {}
                 index[request.item][#index[request.item] + 1] = A.members[request.owner].name
+                    .. (request.unverified and " (copia compartida)" or "")
             end
             expires = math.min(expires, request.created + lifetime)
         end

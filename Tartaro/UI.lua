@@ -873,7 +873,7 @@ local function eventParticipant(event, entry, label)
     end
     local db, id, eventId = A.db, entry.id, event.id
     local function currentParticipant()
-        if A.db ~= db or not A.can(A.me, "event") then return end
+        if A.db ~= db or not A.canEditEvent(A.me, eventId) then return end
         local current = db.events[eventId]
         local signups = db.signups[eventId]
         if not current or current.when <= GetServerTime() or not signups or not signups[id] or not signups[id].joined then return end
@@ -947,6 +947,7 @@ local function calendar()
     column, columnWidth, y = 205, 365, 0
     if not current then line("No hay eventos próximos."); return end
     line(current.title, accent)
+    if current.shared then line("Copia compartida · pendiente de confirmar por el creador o un líder.") end
     line(A.kinds[current.kind] .. " · " .. date("%d/%m/%Y %H:%M", current.when) .. " (hora local)")
     if current.detail ~= "" then line(current.detail) end
     local signups = A.db.signups[current.id] or {}
@@ -974,7 +975,7 @@ local function calendar()
         button("Quiero participar", function() A.signup(current.id); A.refresh() end, true)
     end
     line("Anotados: " .. #entries, accent)
-    if allowed then
+    if A.canEditEvent(A.me, current) then
         for _, entry in ipairs(entries) do
             local signup = entry.signup
             local suffix = current.caps and (" · " .. (A.eventRoles[signup.role] or "Sin rol")
@@ -2198,6 +2199,7 @@ local function professions(onlyDetail)
             local name = A.professionItem(request.item) or ("Objeto " .. request.item)
             line(request.quantity .. " x " .. name, accent)
             line(member.name .. " · " .. connection(member))
+            if request.unverified then line("Copia compartida · pendiente de confirmar por su autor.") end
             line("Vence: " .. date("%d/%m %H:%M", request.created + 7 * 86400))
             if request.owner == A.self then
                 button("Cerrar solicitud", function()
