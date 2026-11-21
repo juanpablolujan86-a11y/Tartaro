@@ -1,0 +1,35 @@
+name: Probar el instalador de Tártaro
+on:
+  push:
+    paths:
+      - 'installer/**'
+      - '.github/workflows/installer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: installer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar bibliotecas de escritorio en Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev libgl1-mesa-dev
+      - name: Probar instalación y actualización
+        run: cargo test --locked
+      - name: Compilar ejecutable
+        run: cargo build --release --locked
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Tartaro-Instalador-${{ runner.os }}-${{ runner.arch }}
+          path: installer/target/release/tartaro-installer${{ runner.os == 'Windows' && '.exe' || '' }}
+          if-no-files-found: error
