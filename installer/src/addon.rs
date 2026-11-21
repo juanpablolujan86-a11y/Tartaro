@@ -24,6 +24,12 @@ pub struct Config {
 }
 
 fn config_path() -> Result<PathBuf> {
+    // Isolate desktop integration tests from the player's active installation.
+    if let Some(dir) = std::env::var_os("TARTARO_INSTALLER_CONFIG_DIR") {
+        let path = PathBuf::from(dir);
+        ensure!(path.is_absolute(), "Se requiere una carpeta de configuración absoluta.");
+        return Ok(path.join("config.json"));
+    }
     Ok(ProjectDirs::from("org", "Tartaro", "TartaroInstaller")
         .context("No se encontró la carpeta de configuración del usuario.")?
         .config_dir()

@@ -1,11 +1,14 @@
 # Runs on an isolated Windows CI account after installing the actual Setup.
-param([Parameter(Mandatory)][string]$AppDir)
+param([Parameter(Mandatory)][string]$AppDir, [switch]$Desktop)
 $ErrorActionPreference = 'Stop'
-$game = Join-Path $env:RUNNER_TEMP 'TartaroTest/_forever_/Interface/AddOns'
+
+$work = Join-Path ([IO.Path]::GetTempPath()) ("tartaro-tray-test-" + [guid]::NewGuid().ToString("N"))
+$game = Join-Path $work 'TartaroTest/_forever_/Interface/AddOns'
 $addon = New-Item -ItemType Directory -Force (Join-Path $game Tartaro)
 Set-Content (Join-Path $addon.FullName 'Tartaro.toc') '## Version: 0.0.1'
-$config = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Tartaro/TartaroInstaller/config'
+$config = Join-Path $work 'config'
 New-Item -ItemType Directory -Force $config | Out-Null
+$env:TARTARO_INSTALLER_CONFIG_DIR = $config
 $file = Join-Path $config config.json
 $bytes = [Text.Encoding]::UTF8.GetBytes((@{folder=$game;automatic=$true}|ConvertTo-Json))
 $stream = [IO.File]::Open($file,[IO.FileMode]::CreateNew)
@@ -19,6 +22,7 @@ try {
         if ($resident.HasExited -or [DateTime]::UtcNow -gt $deadline) { throw 'Falló la actualización sin ventana.' }
         Start-Sleep -Milliseconds 400
     }
+    if (!$Desktop) { return }
     foreach ($attempt in 1..2) {
         $duplicate = Start-Process $launcher -PassThru
         if (!$duplicate.WaitForExit(10000)) { throw 'Se abrió otro residente.' }
