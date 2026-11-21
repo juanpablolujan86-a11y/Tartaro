@@ -78,6 +78,24 @@ function A.callLocation(call)
     return ("%s · %.0f, %.0f"):format(name, call.x * 100, call.y * 100)
 end
 
+local groupedMembers
+local callParty, callPartyDB
+
+local function inCallParty(grouped, now, previousCalls)
+    local active = false
+    for id in pairs(grouped) do
+        if id ~= A.self then
+            local call = previousCalls[id] or previousCalls[A.self]
+            if callPartyDB == A.db and callParty and callParty[id] or call and call.expires > now then
+                active = true
+                break
+            end
+        end
+    end
+    callParty, callPartyDB = active and grouped or nil, A.db
+    return active
+end
+
 function A.receiveCall(member, when, mapID, x, y)
     local now = GetServerTime()
     if not number(when) or when % 1 ~= 0 or when > now + 5 or now - when >= callLifetime
@@ -86,10 +104,13 @@ function A.receiveCall(member, when, mapID, x, y)
     if (A.closedCalls[member.id] or 0) >= when then return end
     if previous and when - previous.when < callCooldown then return end
     local call = {author = member.id, name = member.name, when = when, expires = when + callLifetime, mapID = mapID, x = x, y = y}
+    local grouped = groupedMembers()
+    local quiet = inCallParty(grouped, now, A.calls) and grouped[member.id]
     A.calls[member.id] = call
+    inCallParty(grouped, now, A.calls)
     if member.id == A.self then A.callRequests = {} end
     A.invalidateMap()
-    if member.id ~= A.self then
+    if member.id ~= A.self and not quiet then
         A.showCall(call)
         A.playCallSound(true)
     end
@@ -142,7 +163,7 @@ function A.setSharing(enabled)
     if enabled then A.broadcastPosition() else A.send("X") end
 end
 
-local function groupedMembers()
+groupedMembers = function()
     local now = GetTime()
     if cachedGroup and now < groupUntil then return cachedGroup end
     local grouped = {}
@@ -160,7 +181,10 @@ end
 
 local groupEvents = CreateFrame("Frame")
 groupEvents:RegisterEvent("GROUP_ROSTER_UPDATE")
-groupEvents:SetScript("OnEvent", function() A.invalidateMap(true) end)
+groupEvents:SetScript("OnEvent", function()
+    A.invalidateMap(true)
+    if A.db then inCallParty(groupedMembers(), GetServerTime(), A.calls) end
+end)
 
 local function stitchedCoordinates(api, position, mapID)
     if api.CanvasFromWorldPos and C_Map.GetWorldPosFromMapPos then
@@ -317,9 +341,11 @@ function A.drawPositions()
                 pin:SetPoint("CENTER", canvas, "TOPLEFT", x * canvas:GetWidth() / scale, -y * canvas:GetHeight() / scale)
             end
             if isCall then
-                pin.dot:SetVertexColor(1, 0.25, 0.15)
+                pin.dot:SetTexture("Interface\\AddOns\\Tartaro\\CallSwords")
+                pin.dot:SetVertexColor(1, 1, 1)
                 pin:SetSize(18, 18)
             else
+                pin.dot:SetTexture(dotTexture)
                 colorPin(pin, A.members[id])
                 pin:SetSize(11, 11)
             end

@@ -94,6 +94,12 @@ do
     assert(loadfile("Tartaro/Map.lua"))("Tartaro", actor)
     actor.me = {id = actor.self, name = "Alice"}
     actor.invalidateMap = function() end
+    local oldRaid, oldPartySize, oldUnit = IsInRaid, GetNumSubgroupMembers, UnitFullName
+    local grouped = false
+    IsInRaid = function() return false end
+    GetNumSubgroupMembers = function() return grouped and 1 or 0 end
+    UnitFullName = function() return "Bob", "" end
+    actor.member = function() return {id = "bob"} end
     local oldGhost, oldInstance, oldMap = UnitIsGhost, IsInInstance, C_Map
     UnitIsGhost = function() return false end
     IsInInstance = function() return false end
@@ -101,6 +107,18 @@ do
         GetPlayerMapPosition = function() return {GetXY = function() return 0.2, 0.4 end} end}
     local position = assert(actor.prepareCall())
     assert(actor.sendCall(position))
+    grouped = true
+    local clock = GetTime
+    GetTime = function() return clock() + 2 end
+    local alerts, sounds = 0, 0
+    actor.showCall = function() alerts = alerts + 1 end
+    actor.playCallSound = function() sounds = sounds + 1 end
+    actor.receiveCall({id="bob", name="Bob"}, GetServerTime(), 42, 0.2, 0.3)
+    assert(actor.calls.bob and alerts == 0 and sounds == 0)
+    actor.receiveCall({id="eve", name="Eve"}, GetServerTime(), 42, 0.2, 0.3)
+    assert(alerts == 1 and sounds == 1)
+    GetTime = clock
+    IsInRaid, GetNumSubgroupMembers, UnitFullName = oldRaid, oldPartySize, oldUnit
     UnitIsGhost = function() return true end
     assert(not actor.prepareCall())
     assert(not actor.sendCall(position))
@@ -228,6 +246,9 @@ assert(announcement and announcement:find(questLink, 1, true))
 local original = A.groups[A.self]
 local originalWhen = original.when
 click("Buscar grupo")
+click("Editar búsqueda")
+click("Guardar cambios")
+assert(A.groups[A.self] == original and original.edit == 1 and original.questLink == questLink)
 announcement = nil
 click("Volver a publicar")
 assert(announcement and announcement:find(questLink, 1, true))
@@ -250,6 +271,13 @@ local _, total = A.groupAttendance(bg)
 assert(total == 1 and A.groups[A.self] == bg and bg.when == originalWhen)
 A.receiveGroupAttendance("GJ", A.members.bob, A.self, tostring(bg.when), "H")
 assert(not A.repostGroup(bg))
+assert(not A.publishGroup(bg.activity, "Nuevo lugar", "DPS", {maximum=15, roles={0,0,3}}, bg))
+assert(A.publishGroup(bg.activity, "Nuevo lugar", "2 DPS", {maximum=15, roles={1,1,2}}, bg) == bg)
+assert(bg.edit == 1 and bg.when == originalWhen and bg.location == "Nuevo lugar")
+local _, afterEdit = A.groupAttendance(bg)
+assert(afterEdit == 2)
+A.receiveActivity("GR", A.me, tostring(bg.when), "1", bg.activity, "Lugar anterior", bg.needs, "15:1:1:0", "0")
+assert(bg.location == "Nuevo lugar" and bg.slots.roles[3] == 2)
 A.requestGroupRole(bg, "-")
 A.me.rank = 2
 A.db.grants[2] = {name = A.me.rankName, group = false}

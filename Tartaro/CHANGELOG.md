@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.1.58
+
+- El mapa del mundo y OpenMap muestran dos espadas cruzadas en la ubicación de cada llamado a las armas.
+- En Buscar grupo, el organizador puede editar una búsqueda activa, incluido el lugar y los cupos por rol. Se conservan los anotados y el vencimiento original. Los cupos de una BG deben cubrir a quienes ya están anotados.
+- Con un grupo o banda reunido para un llamado, los nuevos llamados de sus miembros se registran en el mapa sin repetir la ventana ni el sonido. Los avisos de otros miembros de la hermandad siguen apareciendo.
+
 ## 0.1.57
 
 - El llamado a las armas comprueba al abrir y al confirmar que el personaje esté fuera de instancias. Si entra a una raid, BG o mazmorra con la ventana abierta, el llamado se bloquea. Como fantasma también se bloquea en ambos pasos.

@@ -41,14 +41,15 @@ function A.resetActivities()
     A.groups, A.closedCalls, A.callRequests = {}, {}, {}
 end
 
-function A.receiveActivity(action, member, a, b, c, d, e, f)
+function A.receiveActivity(action, member, a, b, c, d, e, f, g)
     local now = GetServerTime()
     if action == "GR" then
         local when = integer(a, now - groupLifetime + 1, now + 5)
         local version = integer(b, 1, 2)
+        local edit = g and integer(g, 0, 2147483647) or 0
         local old = A.groups[member.id]
         if not when or not version or version == 1 and not A.can(member, "group")
-            or old and (old.when > when or old.when == when and old.version >= version)
+            or old and (old.when > when or old.when == when and (old.version > version or old.version == version and (old.edit or 0) >= edit))
             or not c or c == "" or not d or d == "" or not e or e == "" then return end
         local slots
         if f and f ~= "" then
@@ -58,8 +59,10 @@ function A.receiveActivity(action, member, a, b, c, d, e, f)
             if not max or not roles or roles[1] + roles[2] + roles[3] > max then return end
             slots = {maximum = max, roles = roles}
         end
-        A.groups[member.id] = {owner = member.id, when = when, version = version, slots = slots,
-            activity = A.clean(c), location = A.clean(d), needs = A.clean(e)}
+        local group = old and old.when == when and old or {}
+        group.owner, group.when, group.version, group.edit, group.slots = member.id, when, version, edit, slots
+        group.activity, group.location, group.needs = A.clean(c), A.clean(d), A.clean(e)
+        A.groups[member.id] = group
         if A.groupsChanged then A.groupsChanged() end
     elseif action == "CTX" then
         local when = integer(a, now - 299, now + 5)
@@ -78,16 +81,30 @@ function A.receiveActivity(action, member, a, b, c, d, e, f)
     A.invalidate(action == "GR" and "groups" or "map")
 end
 
-function A.publishGroup(activity, location, needs, slots)
+function A.publishGroup(activity, location, needs, slots, editing)
     if not A.can(A.me, "group") then return nil, "Tu rango no puede publicar búsquedas de grupo." end
     activity, location, needs = A.clean(activity), A.clean(location), A.clean(needs)
     if activity == "" or location == "" or needs == "" then return nil, "Completá la actividad, el lugar y los roles." end
     local when = GetServerTime()
     local previous = A.groups[A.self]
-    if previous and previous.when >= when then return nil, "Esperá un segundo y volvé a intentar." end
+    local edit = 0
+    if editing then
+        if previous ~= editing or editing.owner ~= A.self or editing.version ~= 1 or editing.when + groupLifetime <= when then
+            return nil, "La búsqueda ya no está activa."
+        end
+        when, edit = editing.when, (editing.edit or 0) + 1
+        if editing.slots then
+            local occupied = A.groupAttendance(editing)
+            for index, role in ipairs(A.eventRoleOrder) do
+                if occupied[role] > 0 and (activity ~= editing.activity or not slots or slots.roles[index] < occupied[role]) then
+                    return nil, "El cambio debe respetar la actividad y los cupos de los jugadores anotados."
+                end
+            end
+        end
+    elseif previous and previous.when >= when then return nil, "Esperá un segundo y volvé a intentar." end
     local extra = slots and (slots.maximum .. ":" .. table.concat(slots.roles, ":")) or ""
-    if not A.send("GR", when, 1, activity, location, needs, extra) then return nil, "Acortá los textos o volvé a intentar." end
-    A.receiveActivity("GR", A.me, tostring(when), "1", activity, location, needs, extra)
+    if not A.send("GR", when, 1, activity, location, needs, extra, edit) then return nil, "Acortá los textos o volvé a intentar." end
+    A.receiveActivity("GR", A.me, tostring(when), "1", activity, location, needs, extra, edit)
     return A.groups[A.self]
 end
 
@@ -124,7 +141,7 @@ function A.replayActivities()
     local group = A.groups[A.self]
     if group and group.when + groupLifetime > GetServerTime() and (group.version == 2 or A.can(A.me, "group")) then
         local extra = group.slots and (group.slots.maximum .. ":" .. table.concat(group.slots.roles, ":")) or ""
-        A.send("GR", group.when, group.version, group.activity, group.location, group.needs, extra)
+        A.send("GR", group.when, group.version, group.activity, group.location, group.needs, extra, group.edit or 0)
         if group.slots then
             A.shareGroupAttendance(group)
         end

@@ -1502,7 +1502,7 @@ do
             end
         end)
     end)
-    local recipe, guild
+    local recipe, guild, editingGroup
     local function updateReagents()
         if not recipe or A.db ~= guild or not form:IsShown() then return end
         local quantity = tonumber(inputs[1][2]:GetText())
@@ -1527,10 +1527,14 @@ do
     form.updateReagents = updateReagents
     inputs[1][2]:SetScript("OnTextChanged", updateReagents)
     form:SetScript("OnShow", updateReagents)
-    local function openForm(selected)
+    local function openForm(selected, group)
         if not A.db then return end
-        recipe, guild = selected, A.db
+        recipe, guild, editingGroup = selected, A.db, group
         title:SetText(recipe and ("Pedir " .. (recipe.object or recipe.name)) or "Estoy armando grupo")
+        if group then title:SetText("Editar búsqueda de grupo") end
+        needsTitle:SetText(group and group.slots and "Cupos por rol · Incluyen jugadores ya anotados"
+            or "Jugadores que faltan · Vacío o 0 = ninguno")
+        publish:SetText(group and "Guardar cambios" or "Publicar")
         title:SetWidth(350)
         title:SetMaxLines(2)
         local captions = recipe and {"Cantidad"} or {[2] = "Lugar"}
@@ -1550,6 +1554,13 @@ do
             selectedCategory, selectedDestination = "DUNGEON", nil
             description:SetText("")
             for _, input in ipairs(needsFields) do input:SetText("") end
+            if group then
+                local selection = group.selection
+                selectedCategory, selectedDestination = selection.category, selection.destination
+                description:SetText(selection.description or "")
+                inputs[2][2]:SetText(group.location)
+                for i, input in ipairs(needsFields) do input:SetText(tostring(selection.counts[i])) end
+            end
             syncGroupControls()
         end
         reagents:SetShown(recipe ~= nil)
@@ -1563,6 +1574,7 @@ do
     end
     function A.openOrderForm(recipe) openForm(recipe) end
     function A.openGroupForm() openForm() end
+    function A.editGroupForm(group) openForm(nil, group) end
     publish:SetScript("OnClick", function()
         if A.db ~= guild then form:Hide(); return end
         local ok, err
@@ -1570,13 +1582,13 @@ do
             ok, err = A.createOrder(recipe, inputs[1][2]:GetText(), materials:GetChecked() and true or false)
         else
             ok, err = A.publishGroupSelection(selectedCategory, selectedDestination, description:GetText(),
-                inputs[2][2]:GetText(), needsFields[1]:GetText(), needsFields[2]:GetText(), needsFields[3]:GetText())
+                inputs[2][2]:GetText(), needsFields[1]:GetText(), needsFields[2]:GetText(), needsFields[3]:GetText(), editingGroup)
         end
         if not ok then errorText:SetText(err or "No se pudo publicar."); return end
         if recipe then
             professionView = "orders"
             scroll:SetVerticalScroll(0)
-        else
+        elseif not editingGroup then
             announceGroup(ok)
         end
         form:Hide()
@@ -2280,6 +2292,7 @@ function A.renderGroups()
             end
         end
         if group.owner == A.self then
+            if group.selection then button("Editar búsqueda", function() A.editGroupForm(group) end) end
             button("Volver a publicar", function()
                 local ok, err = A.repostGroup(group)
                 if not ok and err then print("Tártaro: " .. err) end

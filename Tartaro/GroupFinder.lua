@@ -74,7 +74,7 @@ function A.groupDestinations(key)
     return list
 end
 
-function A.publishGroupSelection(key, destination, description, location, tanks, healers, damage)
+function A.publishGroupSelection(key, destination, description, location, tanks, healers, damage, editing)
     local category = A.groupCategory(key)
     if not category then return nil, "Seleccioná el tipo de actividad." end
     local activity, maximum
@@ -116,7 +116,10 @@ function A.publishGroupSelection(key, destination, description, location, tanks,
         end
     end
     local group, err = A.publishGroup(category.label .. " · " .. activity, location, table.concat(needs, ", "),
-        key == "BG" and {maximum = maximum, roles = counts} or nil)
-    if group then group.questLink = link end
+        key == "BG" and {maximum = maximum, roles = counts} or nil, editing)
+    if group then
+        group.questLink = link
+        group.selection = {category = key, destination = destination, description = description, counts = counts}
+    end
     return group, err
 end

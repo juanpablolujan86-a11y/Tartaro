@@ -415,7 +415,7 @@ local function receive(message, sender)
         A.receiveOrder(action, member, a, b, c, d, e, f, g, h)
         return
     elseif action == "CTX" or action == "CTJ" or action == "GR" then
-        A.receiveActivity(action, member, a, b, c, d, e, f)
+        A.receiveActivity(action, member, a, b, c, d, e, f, g)
         return
     elseif action == "GJ" or action == "GA" then
         A.receiveGroupAttendance(action, member, a, b, c, d, e)
