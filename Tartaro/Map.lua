@@ -58,8 +58,14 @@ end
 
 local callLifetime, callCooldown = 300, 30
 
+local function callRestriction()
+    if UnitIsGhost("player") then return "No podés lanzar el llamado como fantasma." end
+    if not A.can(A.me, "call") then return "Tu rango no puede lanzar llamados." end
+end
+
 function A.prepareCall()
-    if not A.can(A.me, "call") then return nil, "Tu rango no puede lanzar llamados." end
+    local reason = callRestriction()
+    if reason then return nil, reason end
     local mapID, x, y = ownPosition()
     if not mapID then return nil, "El llamado requiere una ubicación al aire libre." end
     return {mapID = mapID, x = x, y = y}
@@ -89,7 +95,8 @@ function A.receiveCall(member, when, mapID, x, y)
 end
 
 function A.sendCall(position)
-    if not A.can(A.me, "call") then return nil, "Tu rango no puede lanzar llamados." end
+    local reason = callRestriction()
+    if reason then return nil, reason end
     local now = GetServerTime()
     local previous = A.calls[A.self]
     local last = math.max(previous and previous.when or 0, A.closedCalls[A.self] or 0)

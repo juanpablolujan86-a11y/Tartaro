@@ -87,6 +87,25 @@ end}
 local function load(name) assert(loadfile("Tartaro/" .. name .. ".lua"))("Tartaro", A) end
 for _, name in ipairs({"Core", "Professions", "RecipeCatalog", "Activities", "GroupFinder", "GroupAttendance",
     "Orders", "Donations", "Audio", "Version", "UI"}) do load(name) end
+assert(StaticPopupDialogs.TARTARO_CONFIRM_CALL.whileDead, "La confirmación del llamado debe abrirse estando muerto")
+do
+    local actor = {can = function() return true end, calls = {}, closedCalls = {}, self = "alice",
+        send = function() return true end, receiveCall = function() end}
+    assert(loadfile("Tartaro/Map.lua"))("Tartaro", actor)
+    actor.me = {id = actor.self, name = "Alice"}
+    actor.invalidateMap = function() end
+    local oldGhost, oldInstance, oldMap = UnitIsGhost, IsInInstance, C_Map
+    UnitIsGhost = function() return false end
+    IsInInstance = function() return false end
+    C_Map = {GetBestMapForUnit = function() return 42 end,
+        GetPlayerMapPosition = function() return {GetXY = function() return 0.2, 0.4 end} end}
+    local position = assert(actor.prepareCall())
+    assert(actor.sendCall(position))
+    UnitIsGhost = function() return true end
+    assert(not actor.prepareCall())
+    assert(not actor.sendCall(position))
+    UnitIsGhost, IsInInstance, C_Map = oldGhost, oldInstance, oldMap
+end
 A.invalidateMap = noop
 A.realm, A.self, A.guild, A.guildStatus = "realm", "alice", "Tartaro-realm", "allowed"
 A.me = {id = "alice", name = "Alice", rank = 0, rankName = "Leader", online = true}

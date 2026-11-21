@@ -1751,6 +1751,7 @@ C_Timer.NewTicker(1, function()
 end)
 
 StaticPopupDialogs["TARTARO_CONFIRM_CALL"] = {
+    whileDead = true,
     text = "¿Pedir refuerzos para PvP de mundo en %s?",
     button1 = "Lanzar llamado",
     button2 = "Cancelar",
@@ -2130,7 +2131,9 @@ local function renderOrder(order)
     line(own and "Mi pedido" or owner.name, nil, true)
     line(order.materials and (own and "Ya tengo los materiales" or "Ya tiene los materiales")
         or "Necesita materiales", order.materials and {0.68, 0.83, 0.69} or nil, true)
-    if order.unverified then line("Copia pendiente de confirmar", nil, true); return end
+    line("Publicado: " .. date("%d/%m/%Y %H:%M", order.created), nil, true)
+    line("Caduca: " .. date("%d/%m/%Y %H:%M", order.created + 7 * 86400), nil, true)
+    if order.unverified then line("Copia compartida del pedido", nil, true) end
     if own then
         local offers = {}
         for id in pairs(A.db.offers[order.id] or {}) do
@@ -2157,7 +2160,9 @@ local function renderOrder(order)
             openWhisperDraft(whisperTarget(owner.name), "Hola, puedo fabricar tu pedido de " .. order.name .. ".")
         end, false, 165)
     elseif A.canCraftOrder(order) then
-        button("Puedo fabricarlo", function() A.offerOrder(order) end, true, 138)
+        button("Puedo fabricarlo", function()
+            if not A.offerOrder(order) then print("Tártaro: no se pudo registrar la oferta. Volvé a intentar.") end
+        end, true, 138)
     end
 end
 
@@ -2200,7 +2205,8 @@ local function professions(onlyDetail)
             line(request.quantity .. " x " .. name, accent)
             line(member.name .. " · " .. connection(member))
             if request.unverified then line("Copia compartida · pendiente de confirmar por su autor.") end
-            line("Vence: " .. date("%d/%m %H:%M", request.created + 7 * 86400))
+            line("Publicado: " .. date("%d/%m/%Y %H:%M", request.created))
+            line("Caduca: " .. date("%d/%m/%Y %H:%M", request.created + 7 * 86400))
             if request.owner == A.self then
                 button("Cerrar solicitud", function()
                     local ok, err = A.closeDonation(selected.id)

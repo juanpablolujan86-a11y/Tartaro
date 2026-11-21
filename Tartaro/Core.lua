@@ -568,6 +568,7 @@ local function refreshRoster()
         A.resetActivities()
         A.resetOrders()
         A.resetDonations()
+        if A.purgeExpired then A.purgeExpired() end
         if A.resetSharedTransfers then A.resetSharedTransfers() end
         A.resetVersionNotice()
         if A.resetGuildWindows then A.resetGuildWindows() end

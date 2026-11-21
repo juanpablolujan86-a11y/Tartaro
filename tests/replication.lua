@@ -55,6 +55,9 @@ local function spawn(name, saved)
     ctx.saved.guilds[A.guild] = ctx.saved.guilds[A.guild] or {events = {}, notices = {}, signups = {},
         grants = {[2] = {name = "Rank2", event = true}}, deletedEvents = {}, eventReminders = {}, addonSeen = {}, professions = {}}
     A.db = ctx.saved.guilds[A.guild]
+    for id in pairs(A.members) do
+        A.db.professions[id] = A.db.professions[id] or {list = {[333] = {recipes = {[7420] = 0}}}}
+    end
     for _, method in ipairs({"broadcastPosition", "shareRole", "shareVersion", "shareHonor", "invalidate",
         "invalidateMap", "refreshMembers"}) do A[method] = noop end
     ctx.notifications = {}
@@ -65,6 +68,7 @@ local function spawn(name, saved)
     A.professionItem = function() return "Material" end
     load("Orders"); A.resetOrders()
     load("Donations"); A.resetDonations()
+    load("Cleanup")
     ctx.flush = upvalue(ctx.frame.OnEvent, "flush")
     ctx.replay = upvalue(upvalue(ctx.frame.OnEvent, "receive"), "replay")
     clients[name] = ctx
@@ -116,6 +120,12 @@ assert(fresh.A.db.events[event].title == "Original %09 event")
 assert(fresh.notifications[event] == 1)
 assert(#run(fresh.A.listOrders, fresh) == 1 and run(fresh.A.listOrders, fresh)[1].unverified)
 assert(#run(fresh.A.listDonations, fresh) == 1 and fresh.A.db.donations[donation.id].unverified)
+local sharedOrder = run(fresh.A.listOrders, fresh)[1]
+local orderId, originalCreated = sharedOrder.id, sharedOrder.created
+assert(run(fresh.A.offerOrder, fresh, sharedOrder))
+settle(100)
+assert(fresh.A.db.offers[orderId].fresh and relay.A.db.offers[orderId].fresh)
+assert(sharedOrder.unverified and not sharedOrder.closed and sharedOrder.created == originalCreated)
 run(fresh.A.signup, fresh, event)
 settle(100)
 assert(relay.A.db.signups[event].fresh.joined and not relay.A.db.signups[event].fresh.shared)
@@ -137,6 +147,8 @@ assert(not officer.A.canEditEvent(officer.A.me, event)) -- creation grant does n
 assert(author.A.canEditEvent(author.A.members.sub, event) and author.A.canEditEvent(author.A.members.leader, event))
 author.online = true
 replay(author)
+replay(fresh)
+assert(author.A.db.offers[orderId].fresh)
 assert(not fresh.A.db.events[event].shared)
 local confirmed = fresh.A.db.events[event]
 local confirmedClock = fresh.A.db.clock
@@ -177,3 +189,18 @@ assert(count(stress.A.db.events) == 180)
 for _, value in pairs(stress.notifications) do assert(value == 1) end
 print("Replication: offline author, unjoined cache/reload, three relay hops, duplicate delivery, unique signups, permissions and closure tombstones passed.")
 print("Replication queue: 180 cached events recovered once each, despite more than 160 relay fragments.")
+-- Date-based purge keeps valid closure tombstones, then removes expired rows and related offers.
+now = originalCreated + 7 * 86400 - 1
+run(relay.A.purgeExpired, relay)
+assert(relay.A.db.orders[orderId] and relay.A.db.donations[donation.id])
+local future = assert(run(stress.A.createDonation, stress, 2, 3))
+now = now + 1
+assert(run(relay.A.purgeExpired, relay) > 0)
+assert(not relay.A.db.orders[orderId] and not relay.A.db.offers[orderId])
+assert(not relay.A.db.donations[donation.id])
+run(fresh.A.purgeExpired, fresh)
+assert(not fresh.A.db.orderPreviews[orderId] and not fresh.A.db.orderCopyClosed[orderId])
+run(stress.A.purgeExpired, stress)
+assert(stress.A.db.donations[future.id])
+assert(run(relay.A.purgeExpired, relay) == 0)
+print("Offline shared-order offer/reload/reconnect and exact seven-day purge boundary passed; fresh records kept.")

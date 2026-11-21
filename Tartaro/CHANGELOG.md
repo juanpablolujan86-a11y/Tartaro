@@ -1,5 +1,14 @@
 # Cambios
 
+## 0.1.56 — Versión estable
+
+- El llamado admite personajes muertos antes de liberar espíritu. Como fantasma se bloquea tanto al abrir la confirmación como al enviarla.
+
+- Ofertas sobre pedidos compartidos con solicitante desconectado, conservando autoría del fabricante, ID, fecha original y estado de copia.
+- Fechas de publicación y caducidad visibles en pedidos de fabricación y donaciones.
+- Purga automática por fecha, al cargar el contexto y cada minuto, de registros caducados y ofertas asociadas. Conserva cierres todavía necesarios y la retención anterior de treinta días de eventos/avisos.
+- Pruebas simuladas de oferta con solicitante desconectado, recarga, reconexión y límite exacto de siete días. Pendiente de prueba manual; no cambia el estado del issue #6.
+
 ## 0.1.55 — prueba de replicación
 
 - Caché y retransmisión de eventos e inscripciones con el mismo ID, aunque el creador esté desconectado y el miembro que conserva la copia no se haya anotado.

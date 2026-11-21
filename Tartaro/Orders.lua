@@ -62,7 +62,8 @@ function A.resetOrders()
 end
 
 local function verifyOffer(id, crafter)
-    local order = A.db.orders[id]
+    local order = A.db.orders[id] or previews[id]
+    if order and order.unverified and A.db.orderCopyClosed[id] then return end
     if not orderOwner(id) or not A.members[crafter] or order and order.closed then return end
     if not order then return false end
     if not A.knowsRecipe(crafter, order.spell) then return false end
@@ -127,6 +128,7 @@ function A.receiveOrder(action, member, a, b, c, d, e, f, g, h)
             if old or previews[a] then return end
             order.unverified, order.sharedBy = true, member.id
             previews[a] = order
+            for crafter in pairs(pendingOffers) do A.verifyOrderOffers(crafter) end
             A.invalidate("orders")
             return
         end
@@ -174,11 +176,12 @@ function A.closeOrder(order, completed)
 end
 
 function A.canCraftOrder(order)
-    return not order.unverified and A.knowsRecipe(A.self, order.spell)
+    return A.db and order and not order.closed and not (order.unverified and A.db.orderCopyClosed[order.id])
+        and A.knowsRecipe(A.self, order.spell)
 end
 
 function A.offerOrder(order)
-    if not A.db or A.db.orders[order.id] ~= order or order.closed or order.owner == A.self
+    if not A.db or (A.db.orders[order.id] or previews[order.id]) ~= order or order.closed or order.owner == A.self
         or not orderOwner(order.id) or not A.canCraftOrder(order) or not A.send("OF", order.id) then return end
     A.receiveOrder("OF", A.me, order.id)
     return true
@@ -196,7 +199,7 @@ function A.listOrders()
         end
     end
     for id, order in pairs(previews) do
-        if orderOwner(id) then active[#active + 1] = order end
+        if orderOwner(id) and not A.db.orderCopyClosed[id] and not A.db.orders[id] then active[#active + 1] = order end
     end
     local function newest(left, right)
         return left.created > right.created or left.created == right.created and left.id > right.id
@@ -246,11 +249,31 @@ function A.syncOrders()
         end
     end
     for id, offers in pairs(A.db.offers) do
-        local order = A.db.orders[id]
+        local order = A.db.orders[id] or previews[id]
         if offers[A.self] and order and not order.closed and orderOwner(id) and A.canCraftOrder(order) then
             pending[#pending + 1] = {"OF", id}
         end
     end
+end
+
+function A.purgeOrderState()
+    if not A.db then return 0 end
+    local now, removed = GetServerTime(), 0
+    local function expired(id)
+        local stamp = type(id) == "string" and id:match(":(%d+)$")
+        return stamp and math.floor(tonumber(stamp) / 100) + orderLifetime <= now
+    end
+    for _, data in ipairs({A.db.orders, A.db.orderPreviews, A.db.orderCopyClosed, A.db.offers}) do
+        for id in pairs(data or {}) do
+            if expired(id) then data[id] = nil; removed = removed + 1 end
+        end
+    end
+    for crafter, offers in pairs(pendingOffers or {}) do
+        for id in pairs(offers) do if expired(id) then offers[id] = nil end end
+        if not next(offers) then pendingOffers[crafter] = nil end
+    end
+    if removed > 0 then A.invalidate("orders") end
+    return removed
 end
 
 C_Timer.NewTicker(0.7, function()

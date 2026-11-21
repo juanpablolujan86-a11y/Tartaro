@@ -1,4 +1,8 @@
-# Tártaro 0.1.55 para WoW: Forever — prueba de replicación
+# Tártaro 0.1.56 para WoW: Forever
+
+El llamado a las armas admite personajes muertos antes de liberar espíritu y se bloquea como fantasma. Esta versión permite ofrecerse a fabricar un pedido compartido aunque su solicitante esté desconectado. La oferta identifica al fabricante que la envía y sigue asociada al ID original, sin confirmar ni cambiar en nombre del autor el contenido de la copia. El solicitante la recibe cuando coincide conectado con el fabricante, quien retransmite su propia oferta; no se atribuyen ofertas a terceros mediante una copia.
+
+Pedidos y donaciones muestran **Publicado** y **Caduca**, con fecha y hora locales. Su duración sigue siendo siete días desde la creación original: ofrecerse, reenviar o recargar no la extiende. La purga automática se ejecuta al cargar el contexto y cada minuto, solo para la hermandad activa. Elimina pedidos, copias, ofertas y donaciones caducados; conserva sus cierres hasta que venza el plazo original. Para eventos, avisos y cancelaciones conserva el historial anterior de treinta días; no borra datos recientes de otras hermandades ni reinicia la configuración.
 
 Cerrá el juego y copiá la carpeta `Tartaro` a `_forever_/Interface/AddOns/` dentro de la instalación de World of Warcraft. Si ya lo tenés instalado, reemplazá los archivos de esa carpeta. El archivo `Tartaro.toc` debe quedar directamente dentro de la carpeta del addon. En la selección de personaje, verificá que **Tártaro** esté habilitado. Entrá con un personaje de la hermandad y hacé clic en el emblema del borde inferior izquierdo del minimapa. También podés escribir `/tartaro`.
 
@@ -12,7 +16,7 @@ Los eventos, inscripciones y solicitudes recibidos por retransmisión se disting
 
 **Solo el creador, el líder y los sublíderes pueden modificar o eliminar un evento**, aunque otro rango tenga permiso para crear eventos. La UI y la recepción de mensajes aplican esa regla. El creador se identifica por el ID original, no por quien compartió la copia.
 
-Los pedidos de fabricación retransmitidos siguen visibles como **Copia pendiente de confirmar** y se guardan entre sesiones. Para ofrecerse a fabricarlos todavía se necesita confirmación directa del solicitante. Las solicitudes de donación también se retransmiten y sus copias se identifican en lista y tooltip. Los cierres y cancelaciones conservan registros que impiden reactivar copias antiguas. Guardar una copia no concede permiso para editarla o cerrarla en nombre de otro.
+Los pedidos de fabricación retransmitidos siguen visibles como **Copia compartida del pedido** y se guardan entre sesiones. Es posible ofrecerse si el fabricante conoce la receta, aunque el solicitante esté desconectado. Las solicitudes de donación también se retransmiten y sus copias se identifican en lista y tooltip. Los cierres y cancelaciones conservan registros que impiden reactivar copias antiguas. Guardar una copia u ofrecerse no concede permiso para editarla o cerrarla en nombre de otro.
 
 Para probar: actualizar todos los participantes a 0.1.55, crear evento y pedidos en A, dejar que B los reciba sin anotarse y desconectar A. Entrar con C sin esos datos: comprobar que recupera el mismo evento, se anota y B ve una sola inscripción. Repetir la sincronización y reload; comprobar que no se duplican. Volver con A para cancelar/cerrar y comprobar la retirada y la recuperación de esos cierres en un nuevo cliente. Si no hay ningún miembro conectado con una copia, no hay datos que recuperar.
 
