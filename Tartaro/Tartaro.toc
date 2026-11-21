@@ -2,7 +2,7 @@
 ## AllowLoadGameType: camelot
 ## Title: Tártaro
 ## Notes: Mapa, avisos y calendario de hermandad
-## Version: 0.1.56
+## Version: 0.1.57
 ## SavedVariables: TartaroDB
 
 Core.lua

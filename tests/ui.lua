@@ -104,6 +104,12 @@ do
     UnitIsGhost = function() return true end
     assert(not actor.prepareCall())
     assert(not actor.sendCall(position))
+    UnitIsGhost = function() return false end
+    for _, kind in ipairs({"raid", "pvp", "party"}) do
+        IsInInstance = function() return true, kind end
+        assert(not actor.prepareCall(), kind)
+        assert(not actor.sendCall(position), kind)
+    end
     UnitIsGhost, IsInInstance, C_Map = oldGhost, oldInstance, oldMap
 end
 A.invalidateMap = noop

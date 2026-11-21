@@ -1,5 +1,9 @@
 # Cambios
 
+## 0.1.57
+
+- El llamado a las armas comprueba al abrir y al confirmar que el personaje esté fuera de instancias. Si entra a una raid, BG o mazmorra con la ventana abierta, el llamado se bloquea. Como fantasma también se bloquea en ambos pasos.
+
 ## 0.1.56 — Versión estable
 
 - El llamado admite personajes muertos antes de liberar espíritu. Como fantasma se bloquea tanto al abrir la confirmación como al enviarla.

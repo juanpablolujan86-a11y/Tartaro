@@ -60,6 +60,7 @@ local callLifetime, callCooldown = 300, 30
 
 local function callRestriction()
     if UnitIsGhost("player") then return "No podés lanzar el llamado como fantasma." end
+    if IsInInstance() then return "El llamado solo se puede lanzar en PvP de mundo, fuera de instancias." end
     if not A.can(A.me, "call") then return "Tu rango no puede lanzar llamados." end
 end
 

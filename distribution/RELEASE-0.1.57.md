@@ -1,0 +1,1 @@
+El llamado a las armas es para PvP de mundo. Tártaro bloquea el envío como fantasma y dentro de una raid, campo de batalla o mazmorra, incluso si abriste la confirmación antes de entrar. Fuera de instancias podés pedir refuerzos antes de liberar espíritu si tu rango tiene permiso. Las pruebas locales pasaron. La validación en Forever queda pendiente.
