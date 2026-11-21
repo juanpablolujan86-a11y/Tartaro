@@ -44,6 +44,7 @@ jobs:
           }
           $startup = Join-Path ([Environment]::GetFolderPath("Startup")) "Tártaro.lnk"
           if (!(Test-Path $startup)) { throw "Falta el acceso de inicio automático" }
+          ./windows/test-installed.ps1 -AppDir $dir
           $uninstall = Start-Process (Join-Path $dir "unins000.exe") -ArgumentList "/VERYSILENT","/NORESTART" -Wait -PassThru
           if ($uninstall.ExitCode -or (Test-Path $startup)) { throw "Falló la desinstalación" }
       - uses: actions/upload-artifact@v4
