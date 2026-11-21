@@ -28,6 +28,30 @@ jobs:
         run: cargo test --locked
       - name: Compilar ejecutable
         run: cargo build --release --locked
+      - name: Crear instalador de Windows con bandeja
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./windows/build.ps1 -Core (Resolve-Path target/release/tartaro-installer.exe).Path
+      - name: Verificar instalación por usuario
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = Start-Process ./windows/dist/Tartaro-Setup-Windows-x64.exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -PassThru -Wait
+          if ($setup.ExitCode) { throw "Falló Setup" }
+          $dir = Join-Path $env:LOCALAPPDATA "Programs/Tartaro"
+          foreach ($file in "Tartaro.exe","tartaro-installer.exe","unins000.exe") {
+            if (!(Test-Path (Join-Path $dir $file))) { throw "Falta $file" }
+          }
+          $startup = Join-Path ([Environment]::GetFolderPath("Startup")) "Tártaro.lnk"
+          if (!(Test-Path $startup)) { throw "Falta el acceso de inicio automático" }
+          $uninstall = Start-Process (Join-Path $dir "unins000.exe") -ArgumentList "/VERYSILENT","/NORESTART" -Wait -PassThru
+          if ($uninstall.ExitCode -or (Test-Path $startup)) { throw "Falló la desinstalación" }
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: Tartaro-Setup-Windows-X64
+          path: installer/windows/dist/Tartaro-Setup-Windows-x64.exe
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: Tartaro-Instalador-${{ runner.os }}-${{ runner.arch }}

@@ -1,5 +1,7 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 mod addon;
+#[cfg(windows)]
+mod background;
 
 use addon::{Config, OVERLORD};
 use eframe::egui::{self, Color32, RichText};
@@ -19,6 +21,7 @@ struct Installer {
     current: String,
     installed: bool,
     confirmed: bool,
+    resident: bool,
     pending: Option<Receiver<Result<String, String>>>,
     check: Instant,
     overlord_check: Instant,
@@ -62,6 +65,7 @@ impl Installer {
             current: String::new(),
             installed: false,
             confirmed,
+            resident: cfg!(windows) && std::env::args().any(|a| a == "--resident-ui"),
             pending: None,
             check: Instant::now(),
             overlord_check: Instant::now(),
@@ -144,7 +148,10 @@ impl eframe::App for Installer {
                 Err(mpsc::TryRecvError::Empty) => {}
             }
         }
-        if self.confirmed
+        if self.pending.is_some() && ctx.input(|i| i.viewport().close_requested()) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+        }
+        if !self.resident && self.confirmed
             && self.installed
             && self.config.automatic.unwrap_or(true)
             && Instant::now() >= self.check
@@ -240,7 +247,7 @@ impl eframe::App for Installer {
                     if ui
                         .checkbox(
                             &mut automatic,
-                            "Actualizar automáticamente mientras el instalador esté abierto",
+                            if self.resident { "Actualizar automáticamente desde la bandeja" } else { "Actualizar automáticamente mientras el instalador esté abierto" },
                         )
                         .changed()
                     {
@@ -261,6 +268,10 @@ impl eframe::App for Installer {
 }
 
 fn main() -> eframe::Result<()> {
+    #[cfg(windows)]
+    if std::env::args().any(|arg| arg == "--tray-check") {
+        std::process::exit(match background::check() { Ok(true) => 10, Ok(false) => 0, Err(_) => 1 });
+    }
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([690., 540.])

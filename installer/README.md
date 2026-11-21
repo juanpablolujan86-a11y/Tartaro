@@ -4,7 +4,7 @@ Aplicación de escritorio en Rust para la hermandad. Abrí el programa, elegí l
 
 El instalador lee la versión del archivo TOC, consulta la última publicación estable de GitHub y comprueba el tamaño y SHA-256 del ZIP. Prepara los archivos junto a la instalación y conserva la versión anterior en Interface/.tartaro-installer/previous. El directorio WTF y los demás addons quedan fuera del reemplazo.
 
-Con la ventana abierta, busca actualizaciones cada hora si está activa la opción automática. Para Overlord Forever muestra la versión publicada y abre la página oficial de descarga. La instalación automática de Overlord está pendiente de autorización del autor.
+En Windows, ejecutá Tartaro-Setup-Windows-x64.exe. Instala Tártaro para el usuario actual, agrega un acceso al menú Inicio y ofrece iniciarlo junto al reloj al entrar en Windows. Cerrá la ventana con la X para continuar en segundo plano. Hacé clic en el ícono para abrirla y clic derecho para elegir Salir. Con la actualización automática activa, el residente comprueba cada hora si hay una versión nueva y avisa al instalarla. En Linux y macOS la comprobación requiere que la ventana esté abierta. Para Overlord Forever muestra la versión publicada y abre la página oficial de descarga. La instalación automática de Overlord está pendiente de autorización del autor.
 
 ## Desarrollo
 
@@ -17,4 +17,4 @@ Las pruebas crean una carpeta de juego temporal:
     cargo test --locked
     cargo test --locked official_release_round_trip -- --ignored
 
-La segunda prueba necesita acceso público a GitHub. El flujo de GitHub Actions compila el programa para Windows, macOS y Linux por separado. La bandeja del sistema, los avisos del escritorio y las vistas de calendario corresponden a entregas posteriores.
+La segunda prueba necesita acceso público a GitHub. El flujo de GitHub Actions compila el programa para Windows, macOS y Linux por separado. La bandeja en Linux y macOS y las vistas de calendario corresponden a entregas posteriores.
