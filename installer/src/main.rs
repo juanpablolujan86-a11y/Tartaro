@@ -197,7 +197,13 @@ impl eframe::App for Installer {
                 ui.vertical_centered(|ui| {
                     ui.image((self.emblem.id(), egui::vec2(82., 82.)));
                     ui.label(RichText::new("TÁRTARO").size(29.).color(copper));
-                    ui.label("Instalador de la hermandad");
+                    ui.label(concat!("Instalador de la hermandad · ", env!("CARGO_PKG_VERSION")));
+                    #[cfg(windows)]
+                    if self.resident && ui.button("Buscar actualización del programa").clicked() {
+                        let result = std::env::current_exe().and_then(|exe|
+                            std::process::Command::new(exe.with_file_name("Tartaro.exe")).arg("--program-check").spawn());
+                        if let Err(error) = result { self.status = format!("No se pudo abrir el actualizador: {error}"); }
+                    }
                 });
                 ui.add_space(12.);
                 egui::ScrollArea::vertical().show(ui, |ui| {

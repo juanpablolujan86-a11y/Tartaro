@@ -1,7 +1,7 @@
 [Setup]
 AppId=TartaroGuildDesktop
 AppName=Tártaro
-AppVersion=0.2.0
+AppVersion={#ProgramVersion}
 DefaultDirName={localappdata}\Programs\Tartaro
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
