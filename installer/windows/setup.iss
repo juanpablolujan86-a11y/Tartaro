@@ -1,4 +1,8 @@
 [Setup]
+#ifdef SignedBuild
+SignTool=tartaro
+SignedUninstaller=yes
+#endif
 AppId=TartaroGuildDesktop
 AppName=Tártaro
 AppVersion={#ProgramVersion}
