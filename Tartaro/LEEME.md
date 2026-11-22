@@ -1,4 +1,4 @@
-# Tártaro 0.1.58 para WoW: Forever
+# Tártaro 0.1.59 para WoW: Forever
 
 El llamado a las armas admite personajes muertos antes de liberar espíritu y se bloquea como fantasma. Esta versión permite ofrecerse a fabricar un pedido compartido aunque su solicitante esté desconectado. La oferta identifica al fabricante que la envía y sigue asociada al ID original, sin confirmar ni cambiar en nombre del autor el contenido de la copia. El solicitante la recibe cuando coincide conectado con el fabricante, quien retransmite su propia oferta; no se atribuyen ofertas a terceros mediante una copia.
 
@@ -50,7 +50,7 @@ La compilación Lua 5.1, el XML y las pruebas con APIs simuladas cubren el acces
 
 Podés arrastrar el botón de Tártaro con el botón izquierdo para cambiarlo de lugar alrededor del minimapa. La posición se guarda entre sesiones.
 
-1. Con dos miembros de la hermandad que tengan el addon, salgan a una misma zona al aire libre, fuera de grupo. Abran el mapa del mundo de WoW y muévanse unos segundos. Comprueben que el marcador naranja se mueva y muestre el nombre al pasar el cursor. En **Mapa** pueden ver si el juego está aceptando los envíos de su posición y cuántas ubicaciones recientes recibieron.
+1. Con dos miembros de la hermandad que tengan el addon, salgan a una misma zona al aire libre, fuera de grupo. Abran el mapa del mundo de WoW y muévanse unos segundos. Comprueben que el aro del color de clase se mueva y muestre el nombre al pasar el cursor. En **Mapa** pueden ver si el juego está aceptando los envíos de su posición y cuántas ubicaciones recientes recibieron.
 2. Formen grupo y comprueben que WoW muestre un solo marcador por personaje. Salgan del grupo. En `/tartaro` → **Mapa**, desactiven **Compartir mi ubicación con la hermandad** desde uno de los personajes. El otro debería dejar de verlo.
 3. Desde el líder y desde un personaje del rango inmediatamente inferior, abran **Permisos**. Ambos pueden administrar los permisos de Tártaro usando los nombres de los rangos de la hermandad. Para recibir cambios enviados por un sublíder, los miembros necesitan esta versión.
 4. En **Avisos**, publiquen un aviso y editen el mensaje del día. Al entrar o usar `/reload`, Tártaro espera unos segundos a que se sincronice y muestra un solo recuadro con el texto vigente. Si lo cierran, el mismo texto no vuelve a abrirse durante esa sesión ese día.

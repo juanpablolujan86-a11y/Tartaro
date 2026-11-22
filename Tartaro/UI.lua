@@ -1164,7 +1164,8 @@ end
 
 local function settings()
     line("Ajustes de mapa", accent)
-    line("Los marcadores aparecen en el mapa del mundo de WoW.")
+    line("Mapa y minimapa: aro de color de clase = hermandad fuera de tu grupo.")
+    line("Tu grupo o banda usa los marcadores del juego.")
     check("Compartir mi ubicación con la hermandad", TartaroDB.shareLocation ~= false, A.setSharing)
     line("Podés seguir viendo a tus compañeros con esta opción desactivada.")
     line(A.locationStatus(), accent)

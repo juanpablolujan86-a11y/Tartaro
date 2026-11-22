@@ -1,5 +1,9 @@
 # Cambios
 
+## 0.1.59
+
+- Mapa y minimapa distinguen a la hermandad fuera del grupo con aros huecos del color de clase. Al entrar a tu grupo o banda se usa el marcador nativo de WoW. La leyenda está en Mapa.
+
 ## 0.1.58
 
 - El mapa del mundo y OpenMap muestran dos espadas cruzadas en la ubicación de cada llamado a las armas.

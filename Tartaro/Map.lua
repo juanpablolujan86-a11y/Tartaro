@@ -349,7 +349,7 @@ function A.drawPositions()
                 colorPin(pin, A.members[id])
                 pin:SetSize(11, 11)
             end
-            pin.character = isCall and ("Llamado a las armas · " .. position.name) or position.name
+            pin.character = isCall and ("Llamado a las armas · " .. position.name) or (position.name .. " · Hermandad")
             pin:Show()
             count = count + 1
         end
@@ -412,7 +412,7 @@ function A.drawMinimapPositions()
                                 local pin = minimapPins[used] or newPin(minimap)
                                 minimapPins[used] = pin
                                 pin:SetFrameLevel(minimap:GetFrameLevel() + 5)
-                                pin.character = position.name
+                                pin.character = position.name .. " · Hermandad"
                                 colorPin(pin, member)
                                 pin:ClearAllPoints()
                                 pin:SetPoint("CENTER", minimap, "CENTER", (east * cos - south * sin) * width,

@@ -1,0 +1,1 @@
+En el mapa y el minimapa, los miembros de la hermandad que estén fuera de tu grupo aparecen como aros huecos del color de su clase. Los integrantes de tu grupo o banda usan el marcador habitual de WoW. Podés consultar la leyenda en Tártaro → Mapa. Pasaron las pruebas locales y de empaquetado. Queda pendiente la comprobación visual en Forever.

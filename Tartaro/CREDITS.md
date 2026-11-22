@@ -7,7 +7,7 @@ La licencia del código es **Todos los derechos reservados**, elegida por el pro
 | Crest.tga | Emblema de la ventana y los avisos | Procedencia y autorización pendientes |
 | HeaderSkull.tga | Cabecera de la ventana | Procedencia y autorización pendientes |
 | MinimapIcon.tga | Acceso desde el minimapa | Procedencia y autorización pendientes |
-| MapDot.tga | Marcadores del mapa | Procedencia y autorización pendientes |
+| MapDot.tga | Aro de hermandad del mapa y minimapa | Dibujado para Tártaro |
 | CallToArms.mp3 y variantes 20/40/60/80 | Alerta predeterminada | Procedencia y autorización pendientes |
 | CallNature.mp3 y variantes 20/40/60/80 | Alerta opcional Nature | Procedencia y autorización pendientes |
 
