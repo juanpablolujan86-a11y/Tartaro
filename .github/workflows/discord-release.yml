@@ -8,6 +8,7 @@ permissions: {}
 
 jobs:
   announce:
+    if: startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
