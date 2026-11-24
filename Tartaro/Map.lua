@@ -110,7 +110,7 @@ function A.receiveCall(member, when, mapID, x, y)
     inCallParty(grouped, now, A.calls)
     if member.id == A.self then A.callRequests = {} end
     A.invalidateMap()
-    if member.id ~= A.self and not quiet then
+    if member.id ~= A.self and not quiet and not IsInInstance() then
         A.showCall(call)
         A.playCallSound(true)
     end

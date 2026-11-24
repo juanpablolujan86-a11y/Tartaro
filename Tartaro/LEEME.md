@@ -1,4 +1,4 @@
-# Tártaro 0.1.59 para WoW: Forever
+# Tártaro 0.1.60 para WoW: Forever
 
 El llamado a las armas admite personajes muertos antes de liberar espíritu y se bloquea como fantasma. Esta versión permite ofrecerse a fabricar un pedido compartido aunque su solicitante esté desconectado. La oferta identifica al fabricante que la envía y sigue asociada al ID original, sin confirmar ni cambiar en nombre del autor el contenido de la copia. El solicitante la recibe cuando coincide conectado con el fabricante, quien retransmite su propia oferta; no se atribuyen ofertas a terceros mediante una copia.
 

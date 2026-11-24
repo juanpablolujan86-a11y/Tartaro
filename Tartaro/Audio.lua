@@ -12,10 +12,20 @@ local function restoreAudio()
     end
 end
 
+function A.stopCallAlert()
+    if paused and paused.handle and StopSound then pcall(StopSound, paused.handle) end
+    restoreAudio()
+end
+
 function A.playCallAlert(file, duration)
     local get = C_CVar and C_CVar.GetCVar or GetCVar
     local set = C_CVar and C_CVar.SetCVar or SetCVar
-    if not get or not set then return PlaySoundFile(file, "SFX") end
+    if not get or not set then
+        A.stopCallAlert()
+        local played, handle = PlaySoundFile(file, "SFX")
+        if played then paused = {handle = handle, volumes = {}} end
+        return played, handle
+    end
 
     local fresh = not paused
     if fresh then

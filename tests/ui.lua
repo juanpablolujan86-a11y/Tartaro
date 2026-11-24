@@ -125,6 +125,8 @@ do
     UnitIsGhost = function() return false end
     for _, kind in ipairs({"raid", "pvp", "party"}) do
         IsInInstance = function() return true, kind end
+        actor.receiveCall({id=kind, name=kind}, GetServerTime(), 42, 0.2, 0.3)
+        assert(actor.calls[kind] and alerts == 1 and sounds == 1, kind)
         assert(not actor.prepareCall(), kind)
         assert(not actor.sendCall(position), kind)
     end

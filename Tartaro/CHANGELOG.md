@@ -1,5 +1,9 @@
 # Cambios
 
+## 0.1.60
+
+Los llamados a las armas se silencian en mazmorras, campos de batalla y raids. Al entrar se cierra el cartel, se descarta cualquier aviso pendiente y se detiene el sonido del llamado.
+
 ## 0.1.59
 
 - Mapa y minimapa distinguen a la hermandad fuera del grupo con aros huecos del color de clase. Al entrar a tu grupo o banda se usa el marcador nativo de WoW. La leyenda está en Mapa.

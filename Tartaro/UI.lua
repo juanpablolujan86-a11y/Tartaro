@@ -1732,6 +1732,7 @@ local function callMessage(call, separator)
 end
 
 function A.showCall(call)
+    if IsInInstance() then return end
     visibleCall = call
     if not currentCall() or combatWindowsBlocked() then return end
     callBody:SetText(callMessage(call, "\n"))
@@ -1741,6 +1742,17 @@ function A.showCall(call)
     positionCall()
     callPopup:Raise()
 end
+
+local callZone = CreateFrame("Frame")
+callZone:RegisterEvent("PLAYER_ENTERING_WORLD")
+callZone:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+callZone:SetScript("OnEvent", function()
+    if IsInInstance() then
+        visibleCall = nil
+        callPopup:Hide()
+        A.stopCallAlert()
+    end
+end)
 
 callMap:SetScript("OnClick", function()
     local call = currentCall()
