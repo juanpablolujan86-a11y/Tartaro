@@ -1,5 +1,22 @@
 # Cambios
 
+## 0.2.0 — propuesta de integración
+
+- Inicio: acceso directo a pedidos por ID, resaltado/desplazamiento y aviso si dejaron de estar disponibles. Separación de pedidos propios y aquellos para los que el personaje se ofreció.
+- Pedidos: conserva propios y ofertas propias; añade receta conocida a los ajenos disponibles sin ofertas de miembros actuales. Filtrar no borra datos ni cambia sincronización, cierre o caducidad.
+- Calendario mensual de 42 celdas, navegación, selección, resúmenes contenidos y acceso al exceso por día. Detalle lateral desplazable en tarjeta, con título destacado, fecha/hora local, tipo, descripción, cupos e inscritos y acciones al final; vencidos conservados en solo lectura con inscritos. Se mantiene fecha/hora local por cliente y anuncio UTC.
+- Buscar grupo y Donaciones reutilizan las tarjetas de Pedidos. BG muestra necesidades restantes y el organizador accede a invitaciones revalidadas; Donaciones conserva creación desde ingredientes.
+- Avisos con tarjetas; editor con comprobación anticipada de 250 bytes, sin perder texto y conservando validación final.
+- Profesiones distingue lectura/recepción/metadatos pendientes, catálogo vacío y ausencia de coincidencias. Objetos con icono/tooltip compartidos; encantamientos sin objeto conservan el nombre.
+- Honor y Miembros comparten celdas, muestran su orden y desplazan solo el cuerpo de la tabla. Miembros reutiliza menús de susurro/invitación con revalidación.
+- Mapa organiza Ubicación/Estado/Llamados y permite al autor gestionar invitaciones de solicitantes vigentes. Permisos aclara creación y reglas de edición de eventos sin modificar su autorización.
+- Opciones distingue prueba del archivo SFX y alerta completa. Botón nativo «Llamado a las Armas», marco metálico, espadas a ambos lados y escala del 50% al 150% guardada, en pasos de 5%.
+- Componentes visuales por instancia y ciclo de vida compartido; consultas de ofertas, cupos y límite de mensajes unificados; estados de profesiones separados de los textos.
+- Corregida la creación de FontString para botones vacíos que interrumpía la carga al construir Calendario.
+- Trazabilidad de carga y ejecución apagada por defecto, controlada por /tartarodebug, con buffers/contadores limitados y reenvío de errores. Se retiran ventana, botones y ejecutor de pruebas guiadas; se conservan únicamente logs.
+- Pruebas/simulaciones externas retirados por instrucción del propietario; sus documentos permanecen como historial. Verificación actual estática de sintaxis Lua 5.1, XML, caracteres, TOC y recursos. No equivale a validación completa dentro de Forever.
+- Propuesta pendiente de revisión e integración explícita; sin merge automático, tag, Release, ZIP ni publicación en CurseForge.
+
 ## 0.1.60
 
 Los llamados a las armas se silencian en mazmorras, campos de batalla y raids. Al entrar se cierra el cartel, se descarta cualquier aviso pendiente y se detiene el sonido del llamado.

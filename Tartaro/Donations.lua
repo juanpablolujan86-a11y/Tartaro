@@ -1,28 +1,29 @@
 local _, A = ...
+if A.traceLoad then A.traceLoad("module.begin", "Donations.lua") end
 local lifetime = 7 * 86400
 local index, indexDB, expires, outgoing, cursor, requestedAt, syncAt
-local function integer(value, maximum)
+local integer; integer = A.traceCallback("Donations.lua:5:integer", function(value, maximum)
     local n = tonumber(value)
     return n and n == math.floor(n) and n > 0 and n <= maximum and n or nil
-end
-local function changed()
+end)
+local changed; changed = A.traceCallback("Donations.lua:9:changed", function()
     index = nil
     A.invalidate("donations")
-end
+end)
 A.invalidateDonations = changed
-local function active(request, now)
+local active; active = A.traceCallback("Donations.lua:14:active", function(request, now)
     return not request.closed and request.created <= now + 60 and request.created + lifetime > now
-end
-local function records()
+end)
+local records; records = A.traceCallback("Donations.lua:17:records", function()
     if not A.db then return end
     A.db.donations = A.db.donations or {}
     return A.db.donations
-end
-local function packet(request, closed)
+end)
+local packet; packet = A.traceCallback("Donations.lua:22:packet", function(request, closed)
     return {"DN", request.id, request.item, request.quantity, (closed or request.closed) and 1 or 0}
-end
+end)
 
-function A.resetDonations()
+A.resetDonations = A.traceCallback("Donations.lua:26:A.resetDonations", function()
     if A.clearDonationTooltip then A.clearDonationTooltip() end
     index, indexDB, expires, outgoing, cursor, requestedAt, syncAt = nil, nil, nil, nil, nil, nil, nil
     local list = records()
@@ -30,32 +31,32 @@ function A.resetDonations()
         if type(request) ~= "table" or type(request.created) ~= "number"
             or request.created + lifetime <= GetServerTime() then list[id] = nil end
     end
-end
+end)
 
-function A.donationMaterial(item)
+A.donationMaterial = A.traceCallback("Donations.lua:36:A.donationMaterial", function(item)
     if not A.db or not integer(item, 2147483647) then return nil, "Objeto no válido." end
     local name = A.professionItem(item)
     if not name then return nil, "Cargando los datos del objeto. Volvé a intentar en unos segundos." end
     local getInfo = C_Item and C_Item.GetItemInfo or GetItemInfo
-    local ok, reagent = pcall(function() return select(17, getInfo(item)) end)
+    local ok, reagent = A.debugPcall("Donations.lua:41:pcall", A.traceCallback("Donations.lua:41:callback", function() return select(17, getInfo(item)) end))
     if ok and (not issecretvalue or not issecretvalue(reagent)) and reagent == true then return true end
     -- A material already read from a real recipe is also valid, including legacy cloth and herbs.
     for _, materials in pairs(TartaroDB.recipeMaterials or {}) do
         if type(materials) == "table" and materials[item] then return true end
     end
     return nil, "El cliente no identifica este objeto como material de fabricación."
-end
+end)
 
-function A.listDonations()
+A.listDonations = A.traceCallback("Donations.lua:50:A.listDonations", function()
     local result, now = {}, GetServerTime()
     for _, request in pairs(records() or {}) do
         if active(request, now) and A.members[request.owner] then result[#result + 1] = request end
     end
-    table.sort(result, function(a, b) return a.created == b.created and a.id < b.id or a.created > b.created end)
+    table.sort(result, A.traceCallback("Donations.lua:55:callback", function(a, b) return a.created == b.created and a.id < b.id or a.created > b.created end))
     return result
-end
+end)
 
-function A.receiveDonation(member, id, item, quantity, closed, shared)
+A.receiveDonation = A.traceCallback("Donations.lua:59:A.receiveDonation", function(member, id, item, quantity, closed, shared)
     local list = records()
     if not list or type(id) ~= "string" or #id > 110 then return end
     local owner, stamp = id:match("^(.+):(%d+)$")
@@ -85,9 +86,9 @@ function A.receiveDonation(member, id, item, quantity, closed, shared)
         list[id] = request
     end
     changed()
-end
+end)
 
-function A.createDonation(selection, quantity)
+A.createDonation = A.traceCallback("Donations.lua:91:A.createDonation", function(selection, quantity)
     if not A.db or not A.me then return nil, "No hay una hermandad habilitada." end
     local item = type(selection) == "number" and integer(selection, 2147483647)
     if not item then return nil, "Seleccioná un ingrediente desde los materiales de una receta." end
@@ -106,17 +107,17 @@ function A.createDonation(selection, quantity)
     if not A.send(unpack(packet(request))) then return nil, "La cola está llena. Volvé a intentar." end
     A.receiveDonation(A.me, id, item, quantity, "0")
     return records()[id]
-end
+end)
 
-function A.closeDonation(id)
+A.closeDonation = A.traceCallback("Donations.lua:112:A.closeDonation", function(id)
     local request = records() and records()[id]
     if not request or request.owner ~= A.self or not active(request, GetServerTime()) then return end
     if not A.send(unpack(packet(request, true))) then return nil, "La cola está llena. Volvé a intentar." end
     A.receiveDonation(A.me, id, request.item, request.quantity, "1")
     return true
-end
+end)
 
-function A.syncDonations()
+A.syncDonations = A.traceCallback("Donations.lua:120:A.syncDonations", function()
     if not A.db or outgoing or syncAt and GetTime() < syncAt then return end
     syncAt = GetTime() + 10
     outgoing, cursor = {db = A.db}, 1
@@ -127,9 +128,9 @@ function A.syncDonations()
             outgoing[#outgoing + 1] = data
         end
     end
-end
+end)
 
-C_Timer.NewTicker(0.7, function()
+C_Timer.NewTicker(0.7, A.traceCallback("Donations.lua:133:callback", function()
     if not A.db then return end
     if not requestedAt or GetTime() - requestedAt >= 60 then
         if A.send("DQ") then requestedAt = GetTime() end
@@ -139,9 +140,9 @@ C_Timer.NewTicker(0.7, function()
     local nextPacket = outgoing[cursor]
     if not nextPacket then outgoing = nil
     elseif A.sendProfessionPart(unpack(nextPacket)) then cursor = cursor + 1 end
-end)
+end))
 
-function A.donationNames(item)
+A.donationNames = A.traceCallback("Donations.lua:145:A.donationNames", function(item)
     local now = GetServerTime()
     if not index or indexDB ~= A.db or now >= expires then
         index, indexDB, expires = {}, A.db, now + lifetime
@@ -159,11 +160,11 @@ function A.donationNames(item)
         for _, names in pairs(index) do table.sort(names) end
     end
     return index[item]
-end
+end)
 
 -- Reuse only our own lines; never clear or replace lines supplied by the game or another addon.
 local tooltipState = setmetatable({}, {__mode = "k"})
-function A.clearDonationTooltip()
+A.clearDonationTooltip = A.traceCallback("Donations.lua:167:A.clearDonationTooltip", function()
     for tooltip, entries in pairs(tooltipState) do
         for _, entry in ipairs(entries) do
             local current = entry.label:GetText()
@@ -174,8 +175,8 @@ function A.clearDonationTooltip()
         end
         tooltipState[tooltip] = nil
     end
-end
-local function tooltip(tooltip, data)
+end)
+local tooltip; tooltip = A.traceCallback("Donations.lua:179:tooltip", function(tooltip, data)
     if tooltip ~= GameTooltip then return end
     local previous, state = tooltipState[tooltip], {}
     if previous then
@@ -211,12 +212,13 @@ local function tooltip(tooltip, data)
         end
     end
     tooltip:Show()
-end
+end)
 if GameTooltip then
-    GameTooltip:HookScript("OnTooltipCleared", function(self) tooltipState[self] = nil end)
+    GameTooltip:HookScript("OnTooltipCleared", A.traceCallback("Donations.lua:217:callback", function(self) tooltipState[self] = nil end))
     if TooltipDataProcessor and Enum and Enum.TooltipDataType then
         TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, tooltip)
     else
-        pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipSetItem", tooltip)
+        A.debugPcall("Donations.lua:221:pcall", GameTooltip.HookScript, GameTooltip, "OnTooltipSetItem", tooltip)
     end
 end
+if A.traceLoad then A.traceLoad("module.end", "Donations.lua") end

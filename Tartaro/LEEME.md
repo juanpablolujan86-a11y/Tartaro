@@ -1,4 +1,94 @@
-# Tártaro 0.1.60 para WoW: Forever
+# Tártaro 0.2.0 para WoW: Forever
+
+## Debug de la candidata local
+
+El modo debug registra carga, operaciones y errores de Tártaro sin tener que abrir la ventana del addon. Usá /tartarodebug off para apagarlo, /tartarodebug on para activarlo y /tartarodebug para consultar su estado. La preferencia se guarda entre sesiones. Apagarlo no borra logs anteriores.
+
+Los datos están en TartaroDB.loadTrace (carga) y TartaroDB.debugTrace (ejecución). Conservan 1.000 entradas recientes de ejecución, contadores y últimos datos por operación, y hasta 30 errores aparte. WoW los guarda en SavedVariables al recargar o salir normalmente; no se escriben inmediatamente a un archivo externo. Los registros no ocultan los errores normales ni ejecutan acciones por el personaje. La trazabilidad está apagada por defecto y solo se activa mediante una elección explícita guardada. La existencia del registro no certifica ausencia de errores.
+
+## Refactorización local en revisión
+
+El botón muestra «Llamado a las Armas», con espadas cruzadas a ambos lados y un espacio de separación. Conserva el acabado nativo de WoW y el marco metálico dorado. En Opciones, «Tamaño del botón» permite ajustar del 50% al 150%, en pasos de 5%, el botón completo: texto, iconos, fondo y marco. El cambio se aplica al mover el control y queda guardado; «Restablecer configuración» devuelve el tamaño al 100%. Mantiene el arrastre y la posición guardada, y sigue abriendo la confirmación antes de enviar el llamado. La apariencia y la escala requieren comprobación visual dentro del juego.
+
+Los componentes de filas, tarjetas y tablas comparten un ciclo de vida por instancia. Se unifican consultas de ofertas, lectura de cupos y comprobación de tamaño de mensajes; se conserva el comportamiento de negocio, salvo los filtros y cambios de presentación descritos. Esta propuesta declara 0.2.0 y requiere revisión antes de integrar o publicar.
+
+## Cambio local en revisión — Inicio y pedidos
+
+En la rama `codex/mejoras-diseno-menu`, cada pedido mostrado en Inicio se puede pulsar para abrirlo en Profesiones → Pedidos. La tarjeta se identifica y se desplaza a la vista. Si dejó de estar disponible, aparece una explicación. Ver pedidos abre la lista general.
+
+La lista de pendientes muestra pedidos propios, pedidos para los que te ofreciste y pedidos sin ofertas de miembros actuales cuya receta conoce tu personaje según los datos de profesiones del addon. Oculta los pedidos ajenos que solo tienen ofertas de otros personajes y los disponibles cuya receta no figura como conocida. Tus pedidos y aquellos para los que ya te ofreciste conservan su visibilidad. El addon registra ofertas, no una asignación exclusiva: el filtro depende de los datos recibidos. Los pedidos se conservan para sincronización aunque estén ocultos; ofrecerse no los cierra. El historial personal de completados conserva su funcionamiento.
+
+Este cambio pasó pruebas locales con APIs simuladas. Está pendiente de revisión dentro de Forever; no es una nueva release publicada.
+
+## Cambios locales en revisión — Calendario y Buscar grupo
+
+Calendario muestra un mes de siete columnas y seis semanas, con navegación anterior/siguiente y Hoy. El resumen de hora y título permanece contenido en la celda del día; el título completo se puede consultar al pasar el mouse. Si hay más eventos que espacio, + N más selecciona el día y Eventos del día permite elegir cualquiera de ellos. La cuadrícula queda fija y el detalle lateral se desplaza por separado. El evento seleccionado aparece en una tarjeta con título destacado, fecha y hora local explícitas, tipo, descripción y apartados de cupos e inscritos; las acciones autorizadas quedan al final.
+
+Los eventos futuros conservan creación, edición, inscripción, cambio/baja de rol, cupos/suplentes y acciones autorizadas sobre participantes. Los vencidos muestran Evento vencido · Solo lectura y los inscritos conservados, sin controles de edición, inscripción o invitación. Los nombres guardados de miembros que ya no están en la guild también se pueden consultar en ese historial. Solo se muestran registros que el sistema todavía conserva; no cambia la purga actual.
+
+Entrar desde Inicio, un aviso o guardar un evento sitúa su mes/día por el mismo ID. Cambiar la fecha de un evento lo coloca en su nuevo día. La ventana de Calendario se amplía y mantiene el ajuste de escala existente; queda pendiente revisar su legibilidad real en Forever.
+
+El editor sigue convirtiendo la fecha/hora local con time y transmitiendo el número when. Cada cliente usa date local para mostrarlo y agruparlo por día; los anuncios conservan date UTC. Un mismo evento puede caer en días locales distintos. No se añade una configuración por país ni se cambia la lógica horaria. Nuevo evento conserva el formulario y su fecha/hora inicial actual.
+
+En las búsquedas de BG, «Faltan» muestra los roles que todavía tienen cupos disponibles, igual que el anuncio al volver a publicar. Cuando todos los cupos están cubiertos se muestra Cupos completos. Las otras actividades conservan sus necesidades publicadas, porque no tienen ese registro de inscripciones por rol.
+
+El organizador de una BG puede pulsar un inscrito para invitarlo al grupo o banda. Si ya lidera un grupo, el menú permite convertirlo en banda, como en Calendario. Un inscrito desconectado no se puede invitar; las acciones se vuelven a comprobar al ejecutarse y dejan de estar disponibles si el participante se retira, vence/cierra la búsqueda o cambian permisos o guild. Si WoW rechaza la invitación directa, se prepara el comando de invitación en el chat para enviarlo manualmente.
+
+Estos cambios solo pasaron pruebas locales simuladas; faltan pruebas visuales y de invitaciones dentro de Forever.
+
+## Cambios locales en revisión — Avisos y Profesiones
+
+Avisos separa cada publicación con el mismo fondo de tarjeta usado en Pedidos. El editor comprueba el tamaño del mensaje que se enviaría mientras escribís: si excede el límite, muestra una explicación y deshabilita Guardar hasta que lo acortes. No recorta el texto. La comprobación también contempla el mensaje del día y los eventos que usan ese editor; se mantiene la validación final al guardar.
+
+Cuando la búsqueda de recetas queda vacía, distingue entre lectura de profesiones, recepción incompleta aún vigente, datos pendientes de objetos consultados, falta de recetas recibidas y búsqueda sin coincidencias en los datos disponibles. Una lista vacía por sí sola no implica que se esté cargando información.
+
+Pedidos y solicitudes de donación reutilizan la fila de objeto con icono y tooltip. Los encantamientos sin objeto de salida conservan su nombre sin inventar un objeto. Donaciones sin solicitudes explica cómo solicitar desde los materiales de una receta e incluye un acceso a Buscar recetas.
+
+Verificación local con APIs simuladas aprobada; faltan render, escalas, interacción real y aceptación del usuario en Forever. No se publica una versión nueva ni se instala esta rama.
+
+## Cambios locales en revisión — Honor y Miembros
+
+Honor y Miembros comparten la construcción de las celdas de sus tablas, conservando anchos, alturas, colores y reglas de clasificación propios. Ambas áreas explican el orden actual. Honor conserva el botón semanal/total y los empates por nombre; Miembros conserva el orden inicial por conexión/nombre y la cabecera Tártaro para alternar detectados/sin detectar primero.
+
+En Miembros, pulsar otro personaje abre un menú con Susurrar e Invitar al grupo o a la banda. Susurrar prepara el chat vacío para ese destinatario; no envía mensajes automáticamente. Estas acciones requieren conexión confirmada. Para invitar estando agrupado se exige ser líder; fuera de un grupo no se exige ese estado. Convertir grupo en banda se ofrece al líder de un grupo que aún no sea banda.
+
+Las acciones vuelven a comprobar personaje, contexto de hermandad, pertenencia, conexión y liderazgo cuando corresponda. No se usan permisos de edición de eventos. Si falla la invitación directa, se prepara el comando de chat existente. Las acciones previas de Calendario y Buscar grupo conservan sus comprobaciones particulares.
+
+Estos cambios solo se verificaron localmente con APIs simuladas. Faltan presentación, susurros e invitaciones reales en Forever y aceptación del usuario. No se instaló ni publicó la rama.
+
+## Cambios locales en revisión — Mapa, Permisos y Opciones
+
+Mapa organiza la información en Ubicación, Estado y Llamados. En los pedidos de grupo del llamado propio, pulsar otro solicitante permite invitarlo mediante el menú compartido. Se exige conexión confirmada y liderazgo si ya estás agrupado; convertir a banda conserva su condición de liderazgo. Antes de ejecutar se comprueba que el llamado siga siendo el propio y esté vigente, con permiso, solicitud, miembro y contexto actuales.
+
+Permisos muestra Crear eventos y explica que solo el creador, el líder y los sublíderes pueden editar un evento. No se cambian las reglas ni los permisos guardados.
+
+Opciones identifica el botón existente como Probar archivo: reproduce por SFX y no comprueba el modo completo de alerta. La explicación distingue la alerta que intenta usar Master y silenciar temporalmente otros canales; sin API de control de volumen usa SFX. No se cambia el audio ni se añade otra prueba. El volumen, selección de sonido y restablecimiento conservan su funcionamiento.
+
+Pruebas locales con APIs simuladas aprobadas; siguen pendientes render, invitaciones y audio real en Forever. La rama no se ha instalado ni publicado.
+
+## Donaciones y Pedidos: presentación compartida
+
+Listar Solicitud de Donacion utiliza las mismas tarjetas de Pedidos: dos columnas, fondo, relleno, separación y altura adaptada al contenido. Cada tarjeta conserva objeto/cantidad, icono/tooltip, solicitante y conexión, fechas y aviso de copia compartida. Cerrar solicitud aparece solo para las propias. El flujo de creación, sincronización y vencimiento no cambia. La vista vacía conserva su guía hacia Buscar recetas.
+
+Este ajuste está en la rama local y pasó regresiones simuladas; no está instalado en el juego y falta comprobar su presentación real.
+
+## Buscar grupo: tarjetas compartidas
+
+Cada búsqueda utiliza el mismo contenedor de dos columnas, fondo, relleno, separación y altura adaptable que Pedidos y Donaciones. Se conservan orden y filtros de búsquedas, roles restantes, contadores, inscripción/baja, acciones sobre participantes y edición/republicación/cierre del organizador. La solicitud de grupo conserva el destinatario de su tarjeta.
+
+El ajuste está implementado localmente y pasó regresiones simuladas; no se instaló en el juego. Falta revisión visual real de nombres largos, escalas y tarjetas de BG con muchos inscritos.
+
+## Honor y Miembros: desplazamiento de la tabla
+
+El título, las explicaciones, los controles de orden y los encabezados de columnas permanecen fijos. Solo las filas de datos utilizan el desplazamiento vertical. En Miembros, la cabecera Tártaro que alterna la detección también queda fija. Al ordenar se vuelve arriba; si se reducen los datos, se limita el desplazamiento al contenido disponible. Las demás áreas conservan su organización.
+
+Cambio implementado localmente y probado con APIs simuladas. No se actualizó el juego; falta comprobar render, fuentes y escalas dentro de Forever.
+
+## Registro de depuración sin interfaz de pruebas
+
+La propuesta 0.2.0 retira la ventana de pruebas guiadas y los botones Ejecutar pruebas/Ver informe. Solo conserva la trazabilidad controlada por /tartarodebug. Los logs de carga y ejecución se guardan en TartaroDB.loadTrace y TartaroDB.debugTrace; los informes antiguos pueden permanecer como datos históricos guardados, pero el addon no los muestra ni ejecuta.
+
+## Versión base
 
 El llamado a las armas admite personajes muertos antes de liberar espíritu y se bloquea como fantasma. Esta versión permite ofrecerse a fabricar un pedido compartido aunque su solicitante esté desconectado. La oferta identifica al fabricante que la envía y sigue asociada al ID original, sin confirmar ni cambiar en nombre del autor el contenido de la copia. El solicitante la recibe cuando coincide conectado con el fabricante, quien retransmite su propia oferta; no se atribuyen ofertas a terceros mediante una copia.
 

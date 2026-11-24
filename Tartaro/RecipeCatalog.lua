@@ -1,23 +1,24 @@
 local _, A = ...
+if A.traceLoad then A.traceLoad("module.begin", "RecipeCatalog.lua") end
 local entries, cached
 
-local function searchKey(value)
+local searchKey; searchKey = A.traceCallback("RecipeCatalog.lua:5:searchKey", function(value)
     local lowered = (strlower or string.lower)(value)
     local accents = {["á"]="a", ["é"]="e", ["í"]="i", ["ó"]="o", ["ú"]="u", ["ü"]="u",
         ["Á"]="a", ["É"]="e", ["Í"]="i", ["Ó"]="o", ["Ú"]="u", ["Ü"]="u"}
     for letter, replacement in pairs(accents) do lowered = lowered:gsub(letter, replacement) end
     return lowered
-end
+end)
 
-function A.invalidateRecipeCatalog()
+A.invalidateRecipeCatalog = A.traceCallback("RecipeCatalog.lua:13:A.invalidateRecipeCatalog", function()
     entries, cached = nil, nil
-end
+end)
 
-function A.invalidateRecipeSearch()
+A.invalidateRecipeSearch = A.traceCallback("RecipeCatalog.lua:17:A.invalidateRecipeSearch", function()
     cached = nil
-end
+end)
 
-local function buildCatalog()
+local buildCatalog; buildCatalog = A.traceCallback("RecipeCatalog.lua:21:buildCatalog", function()
     local index, metadata = {}, {}
     for member, profile in pairs(A.db.professions) do
         local professions = {}
@@ -41,9 +42,9 @@ local function buildCatalog()
         end
     end
     return index
-end
+end)
 
-function A.searchRecipes(input, filters)
+A.searchRecipes = A.traceCallback("RecipeCatalog.lua:47:A.searchRecipes", function(input, filters)
     local query = searchKey(input):match("^%s*(.-)%s*$")
     local wanted, professionID, rarity, hideBound = filters.member, filters.profession, filters.rarity, filters.hideBound
     if cached and cached.query == query and cached.member == wanted and cached.profession == professionID
@@ -59,10 +60,10 @@ function A.searchRecipes(input, filters)
             end
         end
     end
-    table.sort(members, function(left, right)
+    table.sort(members, A.traceCallback("RecipeCatalog.lua:63:callback", function(left, right)
         if (left.online == true) ~= (right.online == true) then return left.online == true end
         return left.name < right.name
-    end)
+    end))
     local results, bySpell, matching = {}, {}, {}
     local itemQuery = tonumber(query:match("|hitem:(%d+)"))
     local bound = Enum and Enum.ItemBind and Enum.ItemBind.OnAcquire or 1
@@ -95,11 +96,12 @@ function A.searchRecipes(input, filters)
           end
         end
     end
-    table.sort(results, function(left, right)
+    table.sort(results, A.traceCallback("RecipeCatalog.lua:99:callback", function(left, right)
         return left.sortName < right.sortName or left.sortName == right.sortName and left.spell < right.spell
-    end)
+    end))
     cached = {query = query, member = wanted, profession = professionID, rarity = rarity,
         hideBound = hideBound, results = results, bySpell = bySpell}
     return results, bySpell
-end
+end)
 
+if A.traceLoad then A.traceLoad("module.end", "RecipeCatalog.lua") end

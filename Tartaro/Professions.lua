@@ -1,4 +1,5 @@
 local _, A = ...
+if A.traceLoad then A.traceLoad("module.begin", "Professions.lua") end
 local trade = C_TradeSkillUI or {}
 local gathering = {[182] = true, [186] = true, [393] = true}
 local withoutRecipes = {[182] = true, [393] = true, [356] = true, [794] = true}
@@ -6,33 +7,33 @@ local pending, incoming, openedAt, scheduled, learnedRecipes
 local partSize, maxParts = 190, 128
 local materialRequests = {}
 
-local function plain(value)
+local plain; plain = A.traceCallback("Professions.lua:10:plain", function(value)
     if issecretvalue and issecretvalue(value) then return end
     return value
-end
+end)
 
-local function try(fn, ...)
+local try; try = A.traceCallback("Professions.lua:15:try", function(fn, ...)
     if not fn then return end
-    local ok, value = pcall(fn, ...)
+    local ok, value = A.debugPcall("Professions.lua:17:pcall", fn, ...)
     if ok then return plain(value) end
-end
+end)
 
-local function positive(value)
+local positive; positive = A.traceCallback("Professions.lua:21:positive", function(value)
     return type(value) == "number" and value > 0 and value < 100000000 and value % 1 == 0
-end
+end)
 
-local function sortedKeys(values)
+local sortedKeys; sortedKeys = A.traceCallback("Professions.lua:25:sortedKeys", function(values)
     local keys = {}
     for id in pairs(values) do keys[#keys + 1] = id end
     table.sort(keys)
     return keys
-end
+end)
 
-local function encode(professions)
+local encode; encode = A.traceCallback("Professions.lua:32:encode", function(professions)
     local result = {}
     for _, id in ipairs(sortedKeys(professions)) do
         local prof = professions[id]
-        local name = prof.name:gsub("[^A-Za-z0-9 ]", function(byte) return ("%%%02X"):format(byte:byte()) end)
+        local name = prof.name:gsub("[^A-Za-z0-9 ]", A.traceCallback("Professions.lua:36:callback", function(byte) return ("%%%02X"):format(byte:byte()) end))
         local recipes = {}
         for _, spell in ipairs(sortedKeys(prof.recipes or {})) do
             recipes[#recipes + 1] = spell .. ":" .. prof.recipes[spell]
@@ -41,9 +42,9 @@ local function encode(professions)
         result[#result + 1] = table.concat({id, prof.rank, prof.maximum, prof.category, name, state, table.concat(recipes, ".")}, ",")
     end
     return #result > 0 and table.concat(result, ";") or "-"
-end
+end)
 
-local function decode(data)
+local decode; decode = A.traceCallback("Professions.lua:47:decode", function(data)
     local professions = {}
     if data == "-" then return professions end
     local count = 0
@@ -52,7 +53,7 @@ local function decode(data)
         id, rank, maximum = tonumber(id), tonumber(rank), tonumber(maximum)
         count = count + 1
         if not positive(id) or not rank or not maximum or rank > maximum or professions[id] or count > 12 then return end
-        name = A.clean((name:gsub("%%(%x%x)", function(byte) return string.char(tonumber(byte, 16)) end)))
+        name = A.clean((name:gsub("%%(%x%x)", A.traceCallback("Professions.lua:56:callback", function(byte) return string.char(tonumber(byte, 16)) end))))
         if name == "" or #name > 100 or (state ~= "R" and recipes ~= "") then return end
         local prof = {name = name, rank = rank, maximum = maximum, category = category, canCraft = state ~= "N"}
         if state == "R" then
@@ -69,17 +70,17 @@ local function decode(data)
         professions[id] = prof
     end
     return professions
-end
+end)
 
-function A.shareProfessions()
+A.shareProfessions = A.traceCallback("Professions.lua:75:A.shareProfessions", function()
     local own = A.db and A.db.professions[A.self]
     if not own or (pending and pending.rev == own.rev) then return end
     local total = math.ceil(#own.data / partSize)
     if total > maxParts then return end
     pending = {rev = own.rev, data = own.data, total = total, index = 1, db = A.db}
-end
+end)
 
-function A.receiveProfessions(author, rev, index, total, part)
+A.receiveProfessions = A.traceCallback("Professions.lua:83:A.receiveProfessions", function(author, rev, index, total, part)
     if type(rev) ~= "number" or rev % 1 ~= 0 or rev <= 0 or rev > (GetServerTime() + 300) * 100
         or not positive(index) or not positive(total) or total > maxParts or index > total
         or type(part) ~= "string" or #part == 0 or #part > partSize then return end
@@ -90,39 +91,45 @@ function A.receiveProfessions(author, rev, index, total, part)
     if not transfer or transfer.untilTime < now or transfer.rev < rev then
         transfer = {rev = rev, total = total, parts = {}, received = 0, untilTime = now + 240}
         incoming[author] = transfer
+        A.invalidate("recipeStatus")
+        local db = A.db
+        C_Timer.After(240, A.traceCallback("Professions.lua:96:callback", function()
+            if A.db == db and incoming[author] == transfer then A.invalidate("recipeStatus") end
+        end))
     end
     if transfer.rev ~= rev or transfer.total ~= total or transfer.parts[index] then return end
     transfer.parts[index] = part
     transfer.received = transfer.received + 1
     if transfer.received ~= total then return end
     incoming[author] = nil
+    A.invalidate("recipeStatus")
     local professions = decode(table.concat(transfer.parts))
     if not professions then return end
     A.db.professions[author] = {rev = rev, list = professions}
     A.verifyOrderOffers(author)
     A.invalidateRecipeCatalog()
     A.refreshProfessions()
-end
+end)
 
-local function isKnown(spell)
+local isKnown; isKnown = A.traceCallback("Professions.lua:114:isKnown", function(spell)
     return try(IsPlayerSpell or IsSpellKnown or (C_SpellBook and C_SpellBook.IsSpellKnown), spell) == true
-end
+end)
 
-local function professionID(info)
+local professionID; professionID = A.traceCallback("Professions.lua:118:professionID", function(info)
     if type(info) ~= "table" then return end
     local parent, id = plain(info.parentProfessionID), plain(info.professionID)
     return positive(parent) and parent or (positive(id) and id or nil)
-end
+end)
 
-local function recipeItem(spell)
+local recipeItem; recipeItem = A.traceCallback("Professions.lua:124:recipeItem", function(spell)
     local link = try(trade.GetRecipeItemLink, spell)
     if type(link) == "string" then return tonumber(link:match("item:(%d+)")) or 0 end
     local schematic = try(trade.GetRecipeSchematic, spell, false)
     local item = type(schematic) == "table" and plain(schematic.outputItemID)
     return positive(item) and item or 0
-end
+end)
 
-local function readMaterials(spell)
+local readMaterials; readMaterials = A.traceCallback("Professions.lua:132:readMaterials", function(spell)
     local schematic = try(trade.GetRecipeSchematic, spell, false)
     local slots = type(schematic) == "table" and plain(schematic.reagentSlotSchematics)
     if type(slots) ~= "table" then return end
@@ -139,18 +146,18 @@ local function readMaterials(spell)
         end
     end
     return materials
-end
+end)
 
-function A.knowsRecipe(author, spell)
+A.knowsRecipe = A.traceCallback("Professions.lua:151:A.knowsRecipe", function(author, spell)
     local profile = A.db.professions[author]
     if not profile then return false end
     for _, prof in pairs(profile.list) do
         if prof.recipes and prof.recipes[spell] ~= nil then return true end
     end
     return false
-end
+end)
 
-function A.recipeMaterials(spell)
+A.recipeMaterials = A.traceCallback("Professions.lua:160:A.recipeMaterials", function(spell)
     local cache = TartaroDB.recipeMaterials
     if cache[spell] then return cache[spell] end
     local materials = readMaterials(spell)
@@ -162,18 +169,18 @@ function A.recipeMaterials(spell)
     if not materialRequests[spell] or now - materialRequests[spell] >= 15 then
         if A.send("FM", spell) then materialRequests[spell] = now end
     end
-end
+end)
 
-function A.shareRecipeMaterials(spell)
+A.shareRecipeMaterials = A.traceCallback("Professions.lua:174:A.shareRecipeMaterials", function(spell)
     if not positive(spell) or not A.knowsRecipe(A.self, spell) then return end
     local materials = TartaroDB.recipeMaterials[spell] or readMaterials(spell)
     if not materials then return end
     local parts = {}
     for _, item in ipairs(sortedKeys(materials)) do parts[#parts + 1] = item .. ":" .. materials[item] end
     A.send("FR", spell, #parts > 0 and table.concat(parts, ".") or "-")
-end
+end)
 
-function A.receiveRecipeMaterials(author, spell, data)
+A.receiveRecipeMaterials = A.traceCallback("Professions.lua:183:A.receiveRecipeMaterials", function(author, spell, data)
     if not positive(spell) or not materialRequests[spell] or not A.knowsRecipe(author, spell)
         or not data or TartaroDB.recipeMaterials[spell] then return end
     local materials = {}
@@ -187,9 +194,9 @@ function A.receiveRecipeMaterials(author, spell, data)
     end
     TartaroDB.recipeMaterials[spell] = materials
     A.refreshProfessions(true)
-end
+end)
 
-local function readLevels(old, trustDrops)
+local readLevels; readLevels = A.traceCallback("Professions.lua:199:readLevels", function(old, trustDrops)
     local result = {}
     if not GetProfessions or not GetProfessionInfo then return old end
     local indexes = {GetProfessions()}
@@ -213,9 +220,9 @@ local function readLevels(old, trustDrops)
         end
     end
     return result
-end
+end)
 
-local function scanOpen(professions, catalogs)
+local scanOpen; scanOpen = A.traceCallback("Professions.lua:225:scanOpen", function(professions, catalogs)
     if try(trade.IsTradeSkillReady) ~= true or try(trade.IsDataSourceChanging) then return end
     if try(trade.IsTradeSkillLinked) or try(trade.IsTradeSkillGuild) or try(trade.IsTradeSkillGuildMember)
         or try(trade.IsNPCCrafting) then return end
@@ -249,11 +256,12 @@ local function scanOpen(professions, catalogs)
         for spell, item in pairs(prof.recipes or {}) do recipes[spell] = recipes[spell] or item end
     end
     prof.canCraft, prof.recipes = true, recipes
-end
+end)
 
-local function scan()
+local scan; scan = A.traceCallback("Professions.lua:261:scan", function()
     scheduled = false
     if not A.db then return end
+    A.invalidate("recipeStatus")
     local own = A.db.professions[A.self]
     local professions = readLevels(own and own.list or {}, GetTime() - openedAt >= 10)
     local catalogs = TartaroDB.professionCatalogs
@@ -288,15 +296,16 @@ local function scan()
         A.shareProfessions()
         A.refreshProfessions()
     end
-end
+end)
 
-local function scheduleScan()
+local scheduleScan; scheduleScan = A.traceCallback("Professions.lua:301:scheduleScan", function()
     if scheduled then return end
     scheduled = true
+    A.invalidate("recipeStatus")
     C_Timer.After(0.5, scan)
-end
+end)
 
-function A.professionGuildChanged()
+A.professionGuildChanged = A.traceCallback("Professions.lua:308:A.professionGuildChanged", function()
     pending, incoming, openedAt, learnedRecipes = nil, {}, GetTime(), {}
     A.invalidateRecipeCatalog()
     if not A.db then return end
@@ -305,24 +314,24 @@ function A.professionGuildChanged()
     materialRequests = {}
     scheduleScan()
     local db = A.db
-    C_Timer.After(11, function()
+    C_Timer.After(11, A.traceCallback("Professions.lua:317:callback", function()
         if A.db == db then scheduleScan() end
-    end)
-    C_Timer.After(4, function()
+    end))
+    C_Timer.After(4, A.traceCallback("Professions.lua:320:callback", function()
         if A.db == db then A.send("FQ"); A.shareProfessions() end
-    end)
-    C_Timer.After(35, function()
+    end))
+    C_Timer.After(35, A.traceCallback("Professions.lua:323:callback", function()
         if A.db == db then A.send("FQ") end
-    end)
-end
+    end))
+end)
 
 local itemRequests = {}
-function A.professionItem(item)
+A.professionItem = A.traceCallback("Professions.lua:329:A.professionItem", function(item)
     if item == 0 then return end
     local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
     local name, quality, icon, binding
     if getInfo then
-        local ok, itemName, _, rarity, _, _, _, _, _, _, texture, _, _, _, bindType = pcall(getInfo, item)
+        local ok, itemName, _, rarity, _, _, _, _, _, _, texture, _, _, _, bindType = A.debugPcall("Professions.lua:334:pcall", getInfo, item)
         if ok then name, quality, icon, binding = plain(itemName), plain(rarity), plain(texture), plain(bindType) end
     end
     if not name and not itemRequests[item] then
@@ -330,9 +339,9 @@ function A.professionItem(item)
         try(C_Item and C_Item.RequestLoadItemDataByID, item)
     end
     return name, quality, icon, binding
-end
+end)
 
-function A.professionRecipeNames(spell, item)
+A.professionRecipeNames = A.traceCallback("Professions.lua:344:A.professionRecipeNames", function(spell, item)
     local info = try(trade.GetRecipeInfo, spell)
     local recipe = type(info) == "table" and plain(info.name)
     recipe = recipe or try(C_Spell and C_Spell.GetSpellName, spell) or try(GetSpellInfo, spell)
@@ -341,19 +350,44 @@ function A.professionRecipeNames(spell, item)
         object = try(C_Item and C_Item.GetItemNameByID, item) or A.professionItem(item)
     end
     return recipe or object or ("Receta " .. spell), object
-end
+end)
 
-function A.professionItemCount(item)
+A.professionItemCount = A.traceCallback("Professions.lua:355:A.professionItemCount", function(item)
     return try((C_Item and C_Item.GetItemCount) or GetItemCount, item) or 0
-end
+end)
+
+A.recipeSearchState = A.traceCallback("Professions.lua:359:A.recipeSearchState", function()
+    if scheduled then return "loading", "scan" end
+    for author, transfer in pairs(incoming or {}) do
+        if A.members[author] and transfer.untilTime > GetTime() then
+            return "loading", "transfer"
+        end
+    end
+    local hasRecipes, missingItems = false, false
+    local getInfo = C_Item and C_Item.GetItemInfo or GetItemInfo
+    for author, profile in pairs(A.db and A.db.professions or {}) do
+        if A.members[author] then
+            for _, profession in pairs(profile.list) do
+                for _, item in pairs(profession.recipes or {}) do
+                    hasRecipes = true
+                    if item > 0 and itemRequests[item] and not try(getInfo, item) then missingItems = true end
+                end
+            end
+        end
+    end
+    if missingItems then
+        return "metadata", "items"
+    end
+    return hasRecipes and "ready" or "empty"
+end)
 
 local frame = CreateFrame("Frame")
 for _, event in ipairs({"SKILL_LINES_CHANGED", "LEARNED_SPELL_IN_SKILL_LINE", "SPELLS_CHANGED",
     "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "TRADE_SKILL_DATA_SOURCE_CHANGED", "NEW_RECIPE_LEARNED",
     "GET_ITEM_INFO_RECEIVED", "BAG_UPDATE_DELAYED"}) do
-    pcall(frame.RegisterEvent, frame, event)
+    A.debugPcall("Professions.lua:388:pcall", frame.RegisterEvent, frame, event)
 end
-frame:SetScript("OnEvent", function(_, event, id)
+frame:SetScript("OnEvent", A.traceCallback("Professions.lua:390:callback", function(_, event, id)
     if not A.db or not learnedRecipes then return end
     id = plain(id)
     if event == "GET_ITEM_INFO_RECEIVED" then
@@ -367,12 +401,13 @@ frame:SetScript("OnEvent", function(_, event, id)
     if event == "BAG_UPDATE_DELAYED" then A.refreshProfessions(true); return end
     if event == "NEW_RECIPE_LEARNED" and positive(id) then learnedRecipes[id] = true end
     scheduleScan()
-end)
-C_Timer.NewTicker(0.7, function()
+end))
+C_Timer.NewTicker(0.7, A.traceCallback("Professions.lua:405:callback", function()
     if not pending or A.db ~= pending.db then return end
     local start = (pending.index - 1) * partSize + 1
     if A.sendProfessionPart("F", pending.rev, pending.index, pending.total, pending.data:sub(start, start + partSize - 1)) then
         pending.index = pending.index + 1
         if pending.index > pending.total then pending = nil end
     end
-end)
+end))
+if A.traceLoad then A.traceLoad("module.end", "Professions.lua") end

@@ -1,5 +1,7 @@
 # Prueba de replicación 0.1.55
 
+> Estado al 24/11/2026: pruebas y simulaciones externas eliminadas por instrucción del usuario. Las referencias siguientes a sus archivos y ejecuciones se conservan como historial; no representan programas disponibles ni validación real en Forever.
+
 Resultado local: aprobado, con APIs simuladas. No se ejecutó dentro de Forever ni demuestra entrega real del canal de hermandad.
 
 `tests/replication.lua` utiliza Core, Replication, Orders, Donations y Professions reales, incluida la cola y la recepción de Core. El transporte duplica deliberadamente cada mensaje.

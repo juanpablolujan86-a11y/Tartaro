@@ -1,4 +1,5 @@
 local _, A = ...
+if A.traceLoad then A.traceLoad("module.begin", "GroupFinder.lua") end
 A.groupCategories = {
     {key = "DUNGEON", label = "Mazmorra", categoryID = 2},
     {key = "RAID", label = "Banda (Raid)", categoryID = 3},
@@ -7,19 +8,19 @@ A.groupCategories = {
     {key = "OTHER", label = "Otros"},
 }
 
-local function safe(fn, ...)
+local safe; safe = A.traceCallback("GroupFinder.lua:11:safe", function(fn, ...)
     if not fn then return end
-    local ok, result = pcall(fn, ...)
+    local ok, result = A.debugPcall("GroupFinder.lua:13:pcall", fn, ...)
     if ok and (not issecretvalue or not issecretvalue(result)) then return result end
-end
+end)
 
-function A.groupCategory(key)
+A.groupCategory = A.traceCallback("GroupFinder.lua:17:A.groupCategory", function(key)
     for _, category in ipairs(A.groupCategories) do
         if category.key == key then return category end
     end
-end
+end)
 
-function A.groupDestinations(key)
+A.groupDestinations = A.traceCallback("GroupFinder.lua:23:A.groupDestinations", function(key)
     local category = A.groupCategory(key)
     if key == "QUEST" then
         local list, seen = {}, {}
@@ -33,7 +34,7 @@ function A.groupDestinations(key)
                 list[#list + 1] = {id = info.questID, name = info.title}
             end
         end
-        table.sort(list, function(left, right) return left.name < right.name end)
+        table.sort(list, A.traceCallback("GroupFinder.lua:37:callback", function(left, right) return left.name < right.name end))
         return list
     end
     if not category or not category.categoryID then return {} end
@@ -43,10 +44,10 @@ function A.groupDestinations(key)
         local count = safe(GetNumBattlegroundTypes)
         for index = 1, type(count) == "number" and math.min(count, 100) or 0 do
             local info = safe(C_PvP and C_PvP.GetBattlegroundInfo, index)
-            local name = type(info) == "table" and safe(function() return info.name end)
-            local maximum = type(info) == "table" and safe(function() return info.maxPlayers end)
+            local name = type(info) == "table" and safe(A.traceCallback("GroupFinder.lua:47:callback", function() return info.name end))
+            local maximum = type(info) == "table" and safe(A.traceCallback("GroupFinder.lua:48:callback", function() return info.maxPlayers end))
             if not name or not maximum then
-                local ok, oldName, _, _, _, _, _, _, maxPlayers = pcall(GetBattlegroundInfo or function() end, index)
+                local ok, oldName, _, _, _, _, _, _, maxPlayers = A.debugPcall("GroupFinder.lua:50:pcall", GetBattlegroundInfo or A.traceCallback("GroupFinder.lua:50:callback", function() end), index)
                 if ok then name, maximum = name or oldName, maximum or maxPlayers end
             end
             if type(name) == "string" and name ~= "" and not seen[name] then
@@ -54,10 +55,10 @@ function A.groupDestinations(key)
                 list[#list + 1] = {id = "bg:" .. name, name = name, maximum = maximum}
             end
         end
-        table.sort(list, function(left, right) return left.name < right.name end)
+        table.sort(list, A.traceCallback("GroupFinder.lua:58:callback", function(left, right) return left.name < right.name end))
         return list
     end
-    local function collect()
+    local collect; collect = A.traceCallback("GroupFinder.lua:61:collect", function()
         local ids = safe(api and api.GetAvailableActivities, category.categoryID, nil, 0)
         for _, id in ipairs(type(ids) == "table" and ids or {}) do
             local info = safe(api.GetActivityInfoTable, id)
@@ -67,14 +68,14 @@ function A.groupDestinations(key)
                 list[#list + 1] = {id = id, name = info.fullName}
             end
         end
-    end
+    end)
     -- Read only the activities supplied by the running client.
-    pcall(collect)
-    table.sort(list, function(left, right) return left.name < right.name end)
+    A.debugPcall("GroupFinder.lua:73:pcall", collect)
+    table.sort(list, A.traceCallback("GroupFinder.lua:74:callback", function(left, right) return left.name < right.name end))
     return list
-end
+end)
 
-function A.publishGroupSelection(key, destination, description, location, tanks, healers, damage, editing)
+A.publishGroupSelection = A.traceCallback("GroupFinder.lua:78:A.publishGroupSelection", function(key, destination, description, location, tanks, healers, damage, editing)
     local category = A.groupCategory(key)
     if not category then return nil, "Seleccioná el tipo de actividad." end
     local activity, maximum
@@ -122,4 +123,5 @@ function A.publishGroupSelection(key, destination, description, location, tanks,
         group.selection = {category = key, destination = destination, description = description, counts = counts}
     end
     return group, err
-end
+end)
+if A.traceLoad then A.traceLoad("module.end", "GroupFinder.lua") end

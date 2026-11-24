@@ -1,10 +1,11 @@
 local _, A = ...
+if A.traceLoad then A.traceLoad("module.begin", "Roles.lua") end
 local roleOrder = {"TANK", "HEALER", "DAMAGER"}
 local druidOrder = {"FERAL", "BALANCE", "RESTORATION"}
 local roles = {TANK = "Tanque", HEALER = "Sanador", DAMAGER = "DPS", UNKNOWN = "Sin datos"}
 local druidRoles = {FERAL = "Feral", BALANCE = "Balance", RESTORATION = "Restauración"}
 
-local function addCombinedLabels(labels, order)
+local addCombinedLabels; addCombinedLabels = A.traceCallback("Roles.lua:8:addCombinedLabels", function(labels, order)
     for i, first in ipairs(order) do
         for j = i + 1, #order do
             local second = order[j]
@@ -12,14 +13,14 @@ local function addCombinedLabels(labels, order)
         end
     end
     labels[table.concat(order, "/")] = table.concat({labels[order[1]], labels[order[2]], labels[order[3]]}, "/")
-end
+end)
 addCombinedLabels(roles, roleOrder)
 addCombinedLabels(druidRoles, druidOrder)
 
-function A.roleLabel(role, class)
+A.roleLabel = A.traceCallback("Roles.lua:20:A.roleLabel", function(role, class)
     if class == "DRUID" then return druidRoles[role] or roles.UNKNOWN end
     return roles[role] or druidRoles[role] or roles.UNKNOWN
-end
+end)
 local casterClasses = {HUNTER = true, MAGE = true, ROGUE = true}
 local legacyDruidRoles = {FERAL = "UNKNOWN", BALANCE = "DAMAGER", RESTORATION = "HEALER"}
 
@@ -35,7 +36,7 @@ local branchRoles = {
     WARLOCK = {Affliction = "DAMAGER", ["Aflicción"] = "DAMAGER", Destruction = "DAMAGER", ["Destrucción"] = "DAMAGER"},
 }
 
-local function talentRole()
+local talentRole; talentRole = A.traceCallback("Roles.lua:39:talentRole", function()
     local _, class = UnitClass("player")
     local spec, talents, traits = C_SpecializationInfo, C_ClassTalents, C_Traits
     if not traits or not traits.GetConfigInfo or not traits.GetGroupDisplayInfoByTreeID
@@ -76,19 +77,19 @@ local function talentRole()
         end
     end
     if primary then return table.concat(nearby, "/"), legacyDruidRoles[primary] or primary end
-end
+end)
 
-function A.receiveRole(member, role, combined)
+A.receiveRole = A.traceCallback("Roles.lua:82:A.receiveRole", function(member, role, combined)
     if roles[combined] or druidRoles[combined] then role = combined end
     if (roles[role] or druidRoles[role]) and A.db.roles[member] ~= role then
         A.db.roles[member] = role
         A.refreshMembers()
     end
-end
+end)
 
-function A.shareRole(force)
+A.shareRole = A.traceCallback("Roles.lua:90:A.shareRole", function(force)
     if not A.db or not A.me then return end
-    local ok, role, primary = pcall(talentRole)
+    local ok, role, primary = A.debugPcall("Roles.lua:92:pcall", talentRole)
     if not ok then role = nil end
     if not role and UnitGroupRolesAssigned then
         local assigned = UnitGroupRolesAssigned("player")
@@ -105,14 +106,15 @@ function A.shareRole(force)
         end
         if sent then A.receiveRole(A.self, role) end
     end
-end
+end)
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("TRAIT_CONFIG_UPDATED")
 frame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 frame:RegisterEvent("GROUP_ROSTER_UPDATE")
-frame:SetScript("OnEvent", function()
+frame:SetScript("OnEvent", A.traceCallback("Roles.lua:116:callback", function()
     if InCombatLockdown and InCombatLockdown() then return end
     A.shareRole()
-end)
+end))
+if A.traceLoad then A.traceLoad("module.end", "Roles.lua") end
