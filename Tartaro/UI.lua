@@ -1969,7 +1969,8 @@ A.confirmCall = A.traceCallback("UI.lua:1966:A.confirmCall", function()
     StaticPopup_Show("TARTARO_CONFIRM_CALL", A.callLocation(position), nil, {db = A.db, position = position})
 end)
 
-local callLauncher = CreateFrame("Button", "TartaroCallLauncher", Minimap, "UIPanelButtonTemplate")
+local callLauncher = CreateFrame("Button", "TartaroCallLauncher", UIParent, "UIPanelButtonTemplate")
+callLauncher:SetFrameStrata("HIGH")
 callLauncher:SetSize(252, 42)
 do
     local label = callLauncher:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
@@ -1995,7 +1996,11 @@ do
 end
 callLauncher.ResetPosition = A.traceCallback("UI.lua:1996:callLauncher:ResetPosition", function(self)
     self:ClearAllPoints()
-    self:SetPoint("TOP", Minimap, "BOTTOM", 0, -9)
+    if Minimap:IsVisible() then
+        self:SetPoint("TOP", Minimap, "BOTTOM", 0, -9)
+    else
+        self:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -24, -180)
+    end
 end)
 callLauncher:ResetPosition()
 callLauncher:SetFrameLevel(Minimap:GetFrameLevel() + 8)
@@ -2043,8 +2048,10 @@ do
     end)
 
     callLauncher:RegisterEvent("PLAYER_LOGIN")
+    callLauncher:RegisterEvent("PLAYER_ENTERING_WORLD")
     callLauncher:SetScript("OnEvent", A.traceCallback("UI.lua:2046:callback", function()
         A.setCallLauncherSize(A.callLauncherSize())
+        callLauncher:SetShown(A.can(A.me, "call"))
     end))
     callLauncher:SetScript("OnMouseDown", A.traceCallback("UI.lua:2049:callback", function() dragged = false end))
     callLauncher:SetScript("OnDragStart", A.traceCallback("UI.lua:2050:callback", function(self)
