@@ -1,16 +1,17 @@
 local _, A = ...
+if A.traceLoad then A.traceLoad("module.begin", "Replication.lua") end
 local transfers, serial = {}, 0
 local session = tostring(GetServerTime()) .. "-" .. tostring(math.random(1, 999999))
 local history = 30 * 86400
-local function integer(value)
+local integer; integer = A.traceCallback("Replication.lua:6:integer", function(value)
     local n = tonumber(value)
     return n and n > 0 and n % 1 == 0 and n < 9007199254740991 and n or nil
-end
-local function revision(value)
+end)
+local revision; revision = A.traceCallback("Replication.lua:10:revision", function(value)
     local n = integer(value)
     return n and math.floor(n / 100) <= GetServerTime() + 60 and n or nil
-end
-local function sendCopy(packets, data)
+end)
+local sendCopy; sendCopy = A.traceCallback("Replication.lua:14:sendCopy", function(packets, data)
     local payload = table.concat(data, "\t"):gsub("%%", "%%25"):gsub("\t", "%%09")
     if #payload > 1280 then return end
     serial = serial + 1
@@ -18,11 +19,11 @@ local function sendCopy(packets, data)
     for index = 1, total do
         packets[#packets + 1] = {"RP", token, index, total, payload:sub((index - 1) * 160 + 1, index * 160)}
     end
-end
+end)
 
-function A.resetSharedTransfers() transfers = {} end
+A.resetSharedTransfers = A.traceCallback("Replication.lua:24:A.resetSharedTransfers", function() transfers = {} end)
 
-function A.addSharedReplay(packets, eventPacket)
+A.addSharedReplay = A.traceCallback("Replication.lua:26:A.addSharedReplay", function(packets, eventPacket)
     if not A.db then return end
     for id, deletion in pairs(A.db.deletedEvents) do
         if deletion.author ~= A.self then
@@ -46,9 +47,9 @@ function A.addSharedReplay(packets, eventPacket)
             end
         end
     end
-end
+end)
 
-local function apply(member, payload)
+local apply; apply = A.traceCallback("Replication.lua:52:apply", function(member, payload)
     local action, id, b, c, d, e, f, g, h = strsplit("\t", payload)
     local db, now = A.db, GetServerTime()
     local owner = A.eventOwner(id)
@@ -88,9 +89,9 @@ local function apply(member, payload)
         db.signups[id] = signups
     else return end
     A.invalidate("events")
-end
+end)
 
-function A.receiveSharedPart(member, token, part, count, data)
+A.receiveSharedPart = A.traceCallback("Replication.lua:94:A.receiveSharedPart", function(member, token, part, count, data)
     if not A.db or not token or not token:match("^%d+%-%d+%-%d+$") or #token > 40 or type(data) ~= "string" or #data > 160 then return end
     part, count = integer(part), integer(count)
     if not part or not count or count > 8 or part > count then return end
@@ -111,4 +112,5 @@ function A.receiveSharedPart(member, token, part, count, data)
         transfers[key] = nil
         apply(member, table.concat(transfer.parts):gsub("%%09", "\t"):gsub("%%25", "%%"))
     end
-end
+end)
+if A.traceLoad then A.traceLoad("module.end", "Replication.lua") end

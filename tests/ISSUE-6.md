@@ -1,5 +1,7 @@
 # Revisión del issue #6 — 19/11/2026
 
+> Estado al 24/11/2026: pruebas y simulaciones externas eliminadas por instrucción del usuario. Las referencias siguientes a sus archivos y ejecuciones se conservan como historial; no representan programas disponibles ni validación real en Forever.
+
 Código revisado: versión 0.1.54, commit 05ba2958b4a4dd44e37296930e0ae08e19e6a76d. No se modificó el comportamiento del addon ni se declaró resuelto el reporte.
 
 ## UI y estado del pedido

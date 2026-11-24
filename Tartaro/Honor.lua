@@ -1,10 +1,11 @@
 local _, A = ...
+if A.traceLoad then A.traceLoad("module.begin", "Honor.lua") end
 local honorCurrency = 1792
 local maximumTotal = 1000000000
 local scheduled
 local monthStart = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334}
 
-function A.honorWeek()
+A.honorWeek = A.traceCallback("Honor.lua:8:A.honorWeek", function()
     local calendar = C_DateAndTime and C_DateAndTime.GetCurrentCalendarTime
     local now = calendar and calendar()
     if not now or not now.year or not monthStart[now.month] or not now.monthDay or not now.weekday then return end
@@ -15,27 +16,27 @@ function A.honorWeek()
     if leap and now.month > 2 then day = day + 1 end
     -- Calendar weekdays are Sunday = 1. Wednesday at 24:00 is Thursday = 5.
     return day - (now.weekday - 5) % 7
-end
+end)
 
-function A.weeklyHonor(id, week)
+A.weeklyHonor = A.traceCallback("Honor.lua:21:A.weeklyHonor", function(id, week)
     local entry = A.db.honorWeekly[id]
     return week and entry and entry.week == week and entry.points or 0
-end
+end)
 
-local function validPoints(points)
+local validPoints; validPoints = A.traceCallback("Honor.lua:26:validPoints", function(points)
     return (not issecretvalue or not issecretvalue(points))
         and type(points) == "number" and points > 0 and points <= maximumTotal and points % 1 == 0
-end
+end)
 
-function A.shareHonor()
+A.shareHonor = A.traceCallback("Honor.lua:31:A.shareHonor", function()
     local points = A.db and A.db.honor[A.self]
     if not points then return end
     local week = A.honorWeek()
     if week then A.send("HP", points, week, A.weeklyHonor(A.self, week))
     else A.send("HP", points) end
-end
+end)
 
-function A.receiveHonor(author, points, week, weekly)
+A.receiveHonor = A.traceCallback("Honor.lua:39:A.receiveHonor", function(author, points, week, weekly)
     if not validPoints(points) then return end
     local changed
     if points > (A.db.honor[author] or 0) then
@@ -48,11 +49,11 @@ function A.receiveHonor(author, points, week, weekly)
         changed = true
     end
     if changed then A.refreshHonor() end
-end
+end)
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("CURRENCY_DISPLAY_UPDATE")
-frame:SetScript("OnEvent", function(_, _, currency, _, change)
+frame:SetScript("OnEvent", A.traceCallback("Honor.lua:56:callback", function(_, _, currency, _, change)
     if not A.db or (issecretvalue and issecretvalue(currency)) or currency ~= honorCurrency or not validPoints(change) then return end
     local total = (A.db.honor[A.self] or 0) + change
     if total > maximumTotal then return end
@@ -62,19 +63,20 @@ frame:SetScript("OnEvent", function(_, _, currency, _, change)
     A.refreshHonor()
     if not scheduled then
         scheduled = true
-        C_Timer.After(3, function()
+        C_Timer.After(3, A.traceCallback("Honor.lua:66:callback", function()
             scheduled = false
             A.shareHonor()
-        end)
+        end))
     end
-end)
+end))
 
 local lastWeek
-C_Timer.NewTicker(5, function()
+C_Timer.NewTicker(5, A.traceCallback("Honor.lua:74:callback", function()
     if not A.db then return end
     local week = A.honorWeek()
     if week ~= lastWeek then
         lastWeek = week
         A.refreshHonor()
     end
-end)
+end))
+if A.traceLoad then A.traceLoad("module.end", "Honor.lua") end

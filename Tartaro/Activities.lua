@@ -1,27 +1,28 @@
 local _, A = ...
+if A.traceLoad then A.traceLoad("module.begin", "Activities.lua") end
 local groupLifetime = 30 * 60
 A.eventRoleOrder = {"T", "H", "D"}
 A.eventRoles = {T = "Tanque", H = "Sanador", D = "DPS"}
 
-local function integer(value, min, max)
+local integer; integer = A.traceCallback("Activities.lua:7:integer", function(value, min, max)
     local number = tonumber(value)
     if number and number % 1 == 0 and number >= min and number <= max then return number end
-end
+end)
 
-function A.eventCaps(tanks, healers, damage)
+A.eventCaps = A.traceCallback("Activities.lua:12:A.eventCaps", function(tanks, healers, damage)
     local t, h, d = integer(tanks, 0, 40), integer(healers, 0, 40), integer(damage, 0, 40)
     if t and h and d and t + h + d > 0 and t + h + d <= 40 then return {t, h, d} end
-end
+end)
 
-function A.eventAttendance(event)
+A.eventAttendance = A.traceCallback("Activities.lua:17:A.eventAttendance", function(event)
     local entries, counts, status = {}, {}, {}
     for id, signup in pairs(A.db.signups[event.id] or {}) do
         if signup.joined and A.members[id] then entries[#entries + 1] = {id = id, signup = signup} end
     end
-    table.sort(entries, function(left, right)
+    table.sort(entries, A.traceCallback("Activities.lua:22:callback", function(left, right)
         if left.signup.rev ~= right.signup.rev then return left.signup.rev < right.signup.rev end
         return left.id < right.id
-    end)
+    end))
     if event.caps then
         for index, role in ipairs(A.eventRoleOrder) do
             counts[role] = 0
@@ -35,13 +36,13 @@ function A.eventAttendance(event)
         end
     end
     return entries, counts, status
-end
+end)
 
-function A.resetActivities()
+A.resetActivities = A.traceCallback("Activities.lua:41:A.resetActivities", function()
     A.groups, A.closedCalls, A.callRequests = {}, {}, {}
-end
+end)
 
-function A.receiveActivity(action, member, a, b, c, d, e, f, g)
+A.receiveActivity = A.traceCallback("Activities.lua:45:A.receiveActivity", function(action, member, a, b, c, d, e, f, g)
     local now = GetServerTime()
     if action == "GR" then
         local when = integer(a, now - groupLifetime + 1, now + 5)
@@ -79,9 +80,9 @@ function A.receiveActivity(action, member, a, b, c, d, e, f, g)
         A.callRequests[member.id] = true
     end
     A.invalidate(action == "GR" and "groups" or "map")
-end
+end)
 
-function A.publishGroup(activity, location, needs, slots, editing)
+A.publishGroup = A.traceCallback("Activities.lua:85:A.publishGroup", function(activity, location, needs, slots, editing)
     if not A.can(A.me, "group") then return nil, "Tu rango no puede publicar búsquedas de grupo." end
     activity, location, needs = A.clean(activity), A.clean(location), A.clean(needs)
     if activity == "" or location == "" or needs == "" then return nil, "Completá la actividad, el lugar y los roles." end
@@ -106,14 +107,9 @@ function A.publishGroup(activity, location, needs, slots, editing)
     if not A.send("GR", when, 1, activity, location, needs, extra, edit) then return nil, "Acortá los textos o volvé a intentar." end
     A.receiveActivity("GR", A.me, tostring(when), "1", activity, location, needs, extra, edit)
     return A.groups[A.self]
-end
+end)
 
-function A.groupAnnouncementNeeds(group)
-    if not A.db or not group or group.owner ~= A.self or A.groups[A.self] ~= group
-        or group.version ~= 1 or group.when + groupLifetime <= GetServerTime()
-        or not A.can(A.me, "group") then
-        return nil, "La búsqueda ya no está activa o no tenés permiso para publicarla."
-    end
+A.groupRemainingNeeds = A.traceCallback("Activities.lua:112:A.groupRemainingNeeds", function(group)
     if not group.slots then return group.needs end
     local counts = A.groupAttendance(group)
     local needs = {}
@@ -121,23 +117,33 @@ function A.groupAnnouncementNeeds(group)
         local missing = math.max(0, group.slots.roles[index] - counts[role])
         if missing > 0 then needs[#needs + 1] = missing .. " " .. A.eventRoles[role] end
     end
-    if #needs == 0 then return nil, "Los cupos de esta búsqueda ya están completos." end
     return table.concat(needs, ", ")
-end
+end)
 
-function A.closeGroup(group)
+A.groupAnnouncementNeeds = A.traceCallback("Activities.lua:123:A.groupAnnouncementNeeds", function(group)
+    if not A.db or not group or group.owner ~= A.self or A.groups[A.self] ~= group
+        or group.version ~= 1 or group.when + groupLifetime <= GetServerTime()
+        or not A.can(A.me, "group") then
+        return nil, "La búsqueda ya no está activa o no tenés permiso para publicarla."
+    end
+    local needs = A.groupRemainingNeeds(group)
+    if needs == "" then return nil, "Los cupos de esta búsqueda ya están completos." end
+    return needs
+end)
+
+A.closeGroup = A.traceCallback("Activities.lua:134:A.closeGroup", function(group)
     if not A.db or A.groups[A.self] ~= group or group.version ~= 1 then return end
     if A.send("GR", group.when, 2, group.activity, group.location, group.needs) then
         A.receiveActivity("GR", A.me, tostring(group.when), "2", group.activity, group.location, group.needs)
     end
-end
+end)
 
-function A.closeCall(call)
+A.closeCall = A.traceCallback("Activities.lua:141:A.closeCall", function(call)
     if not A.db or A.calls[A.self] ~= call or call.expires <= GetServerTime() then return end
     if A.send("CTX", call.when) then A.receiveActivity("CTX", A.me, tostring(call.when)) end
-end
+end)
 
-function A.replayActivities()
+A.replayActivities = A.traceCallback("Activities.lua:146:A.replayActivities", function()
     local group = A.groups[A.self]
     if group and group.when + groupLifetime > GetServerTime() and (group.version == 2 or A.can(A.me, "group")) then
         local extra = group.slots and (group.slots.maximum .. ":" .. table.concat(group.slots.roles, ":")) or ""
@@ -148,5 +154,6 @@ function A.replayActivities()
     end
     local closed = A.closedCalls[A.self]
     if closed and closed + 300 > GetServerTime() then A.send("CTX", closed) end
-end
+end)
 
+if A.traceLoad then A.traceLoad("module.end", "Activities.lua") end
