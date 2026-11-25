@@ -6,25 +6,27 @@ local replayQueue, replayCursor
 local pendingLocation, retryLocationAt
 local lastLocationPacket
 local locationHeartbeat = 8
+local syncInterval, presenceLifetime = 60, 150
+local sessionSeen = {}
 A.members, A.ranks, A.positions = {}, {}, {}
 A.calls = {}
 local memberAliases = {}
 
-local readable; readable = A.traceCallback("Core.lua:13:readable", function(value)
+local readable; readable = A.traceCallback("Core.lua:15:readable", function(value)
     return not issecretvalue or not issecretvalue(value)
 end)
 
-local key; key = A.traceCallback("Core.lua:17:key", function(name)
+local key; key = A.traceCallback("Core.lua:19:key", function(name)
     if not readable(name) or type(name) ~= "string" then return end
     return name:lower():gsub("%s+", "-")
 end)
 A.key = key
 
-local regionalName; regionalName = A.traceCallback("Core.lua:23:regionalName", function(id)
+local regionalName; regionalName = A.traceCallback("Core.lua:25:regionalName", function(id)
     return id:match("^([^-]+%-[^-]+)")
 end)
 
-A.member = A.traceCallback("Core.lua:27:A.member", function(name)
+A.member = A.traceCallback("Core.lua:29:A.member", function(name)
     local id = key(name)
     if not id then return end
     if A.members[id] then return A.members[id] end
@@ -36,21 +38,21 @@ A.member = A.traceCallback("Core.lua:27:A.member", function(name)
     return memberAliases[regionalName(id)] or nil
 end)
 
-A.canManagePermissions = A.traceCallback("Core.lua:39:A.canManagePermissions", function(member)
+A.canManagePermissions = A.traceCallback("Core.lua:41:A.canManagePermissions", function(member)
     return A.db ~= nil and member ~= nil and (member.rank == 0 or member.rank == 1)
 end)
 
-A.eventOwner = A.traceCallback("Core.lua:43:A.eventOwner", function(event)
+A.eventOwner = A.traceCallback("Core.lua:45:A.eventOwner", function(event)
     local id = type(event) == "table" and event.id or event
     return type(id) == "string" and id:match("^(.+):%d+$") or nil
 end)
 
-A.canEditEvent = A.traceCallback("Core.lua:48:A.canEditEvent", function(member, event)
+A.canEditEvent = A.traceCallback("Core.lua:50:A.canEditEvent", function(member, event)
     return A.db ~= nil and member ~= nil and
         (member.rank == 0 or member.rank == 1 or A.eventOwner(event) == member.id) or false
 end)
 
-A.can = A.traceCallback("Core.lua:53:A.can", function(member, permission)
+A.can = A.traceCallback("Core.lua:55:A.can", function(member, permission)
     if not member or not A.db then return false end
     if member.rank == 0 then return true end
     local grant = A.db.grants[member.rank]
@@ -61,7 +63,7 @@ A.can = A.traceCallback("Core.lua:53:A.can", function(member, permission)
     return grant and grant.name == member.rankName and grant[permission] or false
 end)
 
-local roster; roster = A.traceCallback("Core.lua:64:roster", function()
+local roster; roster = A.traceCallback("Core.lua:66:roster", function()
     local guild, rankName, rank, realm = GetGuildInfo("player")
     local pending = not readable(guild) or not readable(rank) or not readable(rankName) or not readable(realm)
         or IsInGuild() and not guild
@@ -137,15 +139,15 @@ local roster; roster = A.traceCallback("Core.lua:64:roster", function()
     end
 end)
 
-local clean; clean = A.traceCallback("Core.lua:140:clean", function(value)
+local clean; clean = A.traceCallback("Core.lua:142:clean", function(value)
     return tostring(value or ""):gsub("[%c|]", " "):match("^%s*(.-)%s*$")
 end)
 A.clean = clean
 
 local maxPacketBytes=250
-local packetFits; packetFits = A.traceCallback("Core.lua:146:packetFits", function(packet) return #packet <= maxPacketBytes end)
+local packetFits; packetFits = A.traceCallback("Core.lua:148:packetFits", function(packet) return #packet <= maxPacketBytes end)
 
-A.send = A.traceCallback("Core.lua:148:A.send", function(...)
+A.send = A.traceCallback("Core.lua:150:A.send", function(...)
     local packet = table.concat({...}, "\t")
     if not packetFits(packet) or not A.guild then return false end
     if packet == "X" or packet:sub(1, 2) == "P\t" then
@@ -164,15 +166,15 @@ A.send = A.traceCallback("Core.lua:148:A.send", function(...)
     return true
 end)
 
-A.clearPendingPosition = A.traceCallback("Core.lua:167:A.clearPendingPosition", function()
+A.clearPendingPosition = A.traceCallback("Core.lua:169:A.clearPendingPosition", function()
     pendingLocation = nil
 end)
 
-A.sendProfessionPart = A.traceCallback("Core.lua:171:A.sendProfessionPart", function(...)
+A.sendProfessionPart = A.traceCallback("Core.lua:173:A.sendProfessionPart", function(...)
     return #queue < 8 and A.send(...)
 end)
 
-local pumpReplay; pumpReplay = A.traceCallback("Core.lua:175:pumpReplay", function()
+local pumpReplay; pumpReplay = A.traceCallback("Core.lua:177:pumpReplay", function()
     if not replayQueue or #queue >= 8 then return end
     while replayQueue[replayCursor] do
         local packet = replayQueue[replayCursor]
@@ -186,7 +188,7 @@ local pumpReplay; pumpReplay = A.traceCallback("Core.lua:175:pumpReplay", functi
     replayQueue, replayCursor = nil, nil
 end)
 
-local flush; flush = A.traceCallback("Core.lua:189:flush", function()
+local flush; flush = A.traceCallback("Core.lua:191:flush", function()
     if not A.guild then return end
     pumpReplay()
     local now = GetTime()
@@ -198,10 +200,10 @@ local flush; flush = A.traceCallback("Core.lua:189:flush", function()
         return
     end
     local enum = Enum and Enum.SendAddonMessageResult
-    local send; send = A.traceCallback("Core.lua:201:send", function()
+    local send; send = A.traceCallback("Core.lua:203:send", function()
         return select(-1, C_ChatInfo.SendAddonMessage(prefix, packet, "GUILD"))
     end)
-    local ok, result = A.debugPcall("Core.lua:204:pcall", send)
+    local ok, result = A.debugPcall("Core.lua:206:pcall", send)
     A.debugLog("transport.result","Core.flush",packet,ok,result)
     if not ok or (result ~= true and result ~= (enum and enum.Success or 0)) then
         if location then retryLocationAt = now + 2 end
@@ -220,7 +222,7 @@ local flush; flush = A.traceCallback("Core.lua:189:flush", function()
     end
 end)
 
-local eventPacket; eventPacket = A.traceCallback("Core.lua:223:eventPacket", function(event, isNew)
+local eventPacket; eventPacket = A.traceCallback("Core.lua:225:eventPacket", function(event, isNew)
     local flag = isNew and "NEW" or ""
     if event.caps then flag = flag .. ":" .. table.concat(event.caps, ":") end
     local packet = {"E", event.id, event.rev, event.when, event.kind, event.title, event.detail}
@@ -228,40 +230,40 @@ local eventPacket; eventPacket = A.traceCallback("Core.lua:223:eventPacket", fun
     return packet
 end)
 
-local ownId; ownId = A.traceCallback("Core.lua:231:ownId", function(id, author)
+local ownId; ownId = A.traceCallback("Core.lua:233:ownId", function(id, author)
     return id and id:sub(1, #author + 1) == author .. ":"
 end)
 
-local validEventTime; validEventTime = A.traceCallback("Core.lua:235:validEventTime", function(value)
+local validEventTime; validEventTime = A.traceCallback("Core.lua:237:validEventTime", function(value)
     return type(value) == "number" and value > 0 and value % 1 == 0
         and value < GetServerTime() + 370 * 86400
 end)
 
-local validRevision; validRevision = A.traceCallback("Core.lua:240:validRevision", function(value)
+local validRevision; validRevision = A.traceCallback("Core.lua:242:validRevision", function(value)
     return type(value) == "number" and value > 0 and value % 1 == 0
         and math.floor(value / 100) <= GetServerTime() + 60
 end)
 
-local nextRevision; nextRevision = A.traceCallback("Core.lua:245:nextRevision", function()
+local nextRevision; nextRevision = A.traceCallback("Core.lua:247:nextRevision", function()
     local previous = A.db.clock
     return math.max(validRevision(previous) and previous + 1 or 0, GetServerTime() * 100)
 end)
 
-local revision; revision = A.traceCallback("Core.lua:250:revision", function()
+local revision; revision = A.traceCallback("Core.lua:252:revision", function()
     A.db.clock = nextRevision()
     return A.db.clock
 end)
 
-local newId; newId = A.traceCallback("Core.lua:255:newId", function(rev)
+local newId; newId = A.traceCallback("Core.lua:257:newId", function(rev)
     return A.self .. ":" .. rev
 end)
 
-local publicationPacket; publicationPacket = A.traceCallback("Core.lua:259:publicationPacket", function(rev, text, daily, when)
+local publicationPacket; publicationPacket = A.traceCallback("Core.lua:261:publicationPacket", function(rev, text, daily, when)
     if daily then return {"D", rev, text} end
     return {"N", newId(rev), when, text}
 end)
 
-A.editorMessageFits = A.traceCallback("Core.lua:264:A.editorMessageFits", function(mode, id, when, kind, title, detail, caps)
+A.editorMessageFits = A.traceCallback("Core.lua:266:A.editorMessageFits", function(mode, id, when, kind, title, detail, caps)
     if not A.db or not A.self then return false end
     local rev = nextRevision()
     local packet
@@ -280,16 +282,29 @@ local addonActions = {Q = true, H = true, V = true, P = true, X = true, R = true
     CTX = true, CTJ = true, GR = true, OR = true, OF = true, OC = true, AQ = true,
     GJ = true, GA = true, DQ = true, DN = true, DC = true, RP = true, OX = true}
 
-A.hasUsedAddon = A.traceCallback("Core.lua:283:A.hasUsedAddon", function(member)
+A.hasUsedAddon = A.traceCallback("Core.lua:285:A.hasUsedAddon", function(member)
     return A.db and A.db.addonSeen[member.id] ~= nil
 end)
 
-local grantPacket; grantPacket = A.traceCallback("Core.lua:287:grantPacket", function(order, grant)
+A.addonPresence = A.traceCallback("Core.addonPresence", function(member)
+    if not A.db or not member then return "undetected" end
+    local lastSeen = A.db.addonSeen[member.id]
+    if member.online == true then
+        local elapsed = sessionSeen[member.id] and GetTime() - sessionSeen[member.id]
+        if member.id == A.self or elapsed and elapsed >= 0 and elapsed < presenceLifetime then
+            return "active", lastSeen
+        end
+        if lastSeen ~= nil then return "unconfirmed", lastSeen end
+    end
+    return lastSeen ~= nil and "historical" or "undetected", lastSeen
+end)
+
+local grantPacket; grantPacket = A.traceCallback("Core.lua:302:grantPacket", function(order, grant)
     return {"R", grant.rev, order, grant.notice and 1 or 0, grant.event and 1 or 0, grant.name,
         grant.call and 1 or 0, grant.editor or "", grant.group ~= false and 1 or 0}
 end)
 
-local replay; replay = A.traceCallback("Core.lua:292:replay", function()
+local replay; replay = A.traceCallback("Core.lua:307:replay", function()
     if not A.db or replayQueue then return end
     A.broadcastPosition()
     A.shareRole(true)
@@ -329,7 +344,7 @@ local replay; replay = A.traceCallback("Core.lua:292:replay", function()
     if #packets > 0 then replayQueue, replayCursor = packets, 1 end
 end)
 
-local trim; trim = A.traceCallback("Core.lua:332:trim", function()
+local trim; trim = A.traceCallback("Core.lua:347:trim", function()
     if not A.db then return end
     local cutoff = GetServerTime() - historyDays
     for id, item in pairs(A.db.notices) do
@@ -343,22 +358,22 @@ local trim; trim = A.traceCallback("Core.lua:332:trim", function()
     end
 end)
 
-local newer; newer = A.traceCallback("Core.lua:346:newer", function(old, rev, author, ownerField)
+local newer; newer = A.traceCallback("Core.lua:361:newer", function(old, rev, author, ownerField)
     return not old or not validRevision(old.rev) or rev > old.rev or (rev == old.rev and author > old[ownerField])
 end)
 
-local observeRevision; observeRevision = A.traceCallback("Core.lua:350:observeRevision", function(rev)
+local observeRevision; observeRevision = A.traceCallback("Core.lua:365:observeRevision", function(rev)
     local previous = A.db.clock
     A.db.clock = math.max(validRevision(previous) and previous or 0, rev)
 end)
 
-local recordDeletion; recordDeletion = A.traceCallback("Core.lua:355:recordDeletion", function(id, rev, when, author)
+local recordDeletion; recordDeletion = A.traceCallback("Core.lua:370:recordDeletion", function(id, rev, when, author)
     A.db.deletedEvents[id] = {rev = rev, when = when, author = author}
     A.db.events[id], A.db.signups[id], A.db.eventReminders[id] = nil, nil, nil
     observeRevision(rev)
 end)
 
-local receive; receive = A.traceCallback("Core.lua:361:receive", function(message, sender)
+local receive; receive = A.traceCallback("Core.lua:376:receive", function(message, sender)
     if not A.db or not readable(message) then return end
     local member = A.member(sender)
     if not member or member.id == A.self then return end
@@ -366,16 +381,21 @@ local receive; receive = A.traceCallback("Core.lua:361:receive", function(messag
     A.debugLog("transport.receive","Core.receive",sender,action,#message)
     local author = member.id
     if not addonActions[action] then return end
-    local wasDetected = A.hasUsedAddon(member)
+    local previousPresence = A.addonPresence(member)
     A.db.addonSeen[author] = GetServerTime()
-    if not wasDetected and A.refreshMembers then A.refreshMembers() end
+    sessionSeen[author] = GetTime()
+    local presence = A.addonPresence(member)
+    if previousPresence ~= presence then
+        A.debugLog("presence.changed", "Core.receive", author, previousPresence, presence)
+        if A.refreshMembers then A.refreshMembers() end
+    end
     local rev = tonumber(a)
     local validRev = validRevision(rev)
     if action == "Q" then
         if not A.replayAfter or GetTime() >= A.replayAfter then
             A.replayAfter = GetTime() + 10
             local guild = A.guild
-            C_Timer.After(math.random(1, 4), A.traceCallback("Core.lua:378:callback", function()
+            C_Timer.After(math.random(1, 4), A.traceCallback("Core.lua:398:callback", function()
                 if A.guild == guild then replay() end
             end))
         end
@@ -506,7 +526,7 @@ end)
 
 A.kinds = { BG = "Campos de batalla", RAID = "Raid", PVP = "PvP mundial", OTHER = "Otro" }
 
-A.saveEvent = A.traceCallback("Core.lua:509:A.saveEvent", function(id, when, kind, title, detail, caps)
+A.saveEvent = A.traceCallback("Core.lua:529:A.saveEvent", function(id, when, kind, title, detail, caps)
     if not (id and A.canEditEvent(A.me, id) or not id and A.can(A.me, "event")) then
         return nil, "Solo el creador, el líder y los sublíderes pueden editar este evento."
     end
@@ -523,7 +543,7 @@ A.saveEvent = A.traceCallback("Core.lua:509:A.saveEvent", function(id, when, kin
     return id
 end)
 
-A.deleteEvent = A.traceCallback("Core.lua:526:A.deleteEvent", function(id)
+A.deleteEvent = A.traceCallback("Core.lua:546:A.deleteEvent", function(id)
     if not A.canEditEvent(A.me, id) then return nil, "No tenés permiso para eliminar este evento." end
     local event = A.db.events[id]
     if not event then return nil, "El evento ya no está disponible." end
@@ -533,7 +553,7 @@ A.deleteEvent = A.traceCallback("Core.lua:526:A.deleteEvent", function(id)
     return true
 end)
 
-A.publish = A.traceCallback("Core.lua:536:A.publish", function(text, daily)
+A.publish = A.traceCallback("Core.lua:556:A.publish", function(text, daily)
     if not A.can(A.me, "notice") then return nil, "Tu rango no puede publicar avisos." end
     text = clean(text)
     if text == "" and not daily then return nil, "Escribí un aviso." end
@@ -551,7 +571,7 @@ A.publish = A.traceCallback("Core.lua:536:A.publish", function(text, daily)
     return true
 end)
 
-A.signup = A.traceCallback("Core.lua:554:A.signup", function(id, role)
+A.signup = A.traceCallback("Core.lua:574:A.signup", function(id, role)
     if not A.db or not A.db.events[id] or A.db.events[id].when <= GetServerTime() then return end
     local signups = A.db.signups[id] or {}
     local old = signups[A.self]
@@ -569,7 +589,7 @@ A.signup = A.traceCallback("Core.lua:554:A.signup", function(id, role)
     signups[A.self] = { rev = rev, joined = joined, name = A.me.name, role = role }
 end)
 
-A.setGrant = A.traceCallback("Core.lua:572:A.setGrant", function(order, permission, enabled)
+A.setGrant = A.traceCallback("Core.lua:592:A.setGrant", function(order, permission, enabled)
     if not A.canManagePermissions(A.me) or not A.ranks[order] or order == 0 then return end
     if permission ~= "notice" and permission ~= "event" and permission ~= "call" and permission ~= "group" then return end
     local name = A.ranks[order]
@@ -584,16 +604,17 @@ A.setGrant = A.traceCallback("Core.lua:572:A.setGrant", function(order, permissi
     A.invalidate("permissions")
 end)
 
-local request; request = A.traceCallback("Core.lua:587:request", function()
+local request; request = A.traceCallback("Core.lua:607:request", function()
     if A.guild then A.send("Q") end
 end)
 
-local refreshRoster; refreshRoster = A.traceCallback("Core.lua:591:refreshRoster", function()
+local refreshRoster; refreshRoster = A.traceCallback("Core.lua:611:refreshRoster", function()
     local previous = A.guild
     local previousStatus = A.guildStatus
     local members, ranks = A.members, A.ranks
     roster()
     if A.guild ~= previous or A.guildStatus ~= previousStatus then
+        sessionSeen = {}
         queue, queued, A.positions, A.calls = {}, {}, {}, {}
         replayQueue, replayCursor, A.replayAfter = nil, nil, nil
         pendingLocation, retryLocationAt, lastLocationPacket = nil, nil, nil
@@ -615,6 +636,10 @@ local refreshRoster; refreshRoster = A.traceCallback("Core.lua:591:refreshRoster
         A.invalidateMap(true)
         A.invalidate("roster")
         return
+    end
+    for id in pairs(sessionSeen) do
+        local member, old = A.members[id], members[id]
+        if not member or member.online ~= true or not old or old.online ~= true then sessionSeen[id] = nil end
     end
     local changed
     for id, member in pairs(A.members) do
@@ -642,7 +667,7 @@ local refreshRoster; refreshRoster = A.traceCallback("Core.lua:591:refreshRoster
     end
 end)
 
-local requestRoster; requestRoster = A.traceCallback("Core.lua:645:requestRoster", function()
+local requestRoster; requestRoster = A.traceCallback("Core.lua:670:requestRoster", function()
     if C_GuildInfo and C_GuildInfo.GuildRoster then
         C_GuildInfo.GuildRoster()
     elseif GuildRoster then
@@ -654,7 +679,7 @@ local frame = CreateFrame("Frame")
 for _, event in ipairs({"PLAYER_LOGIN", "PLAYER_GUILD_UPDATE", "GUILD_ROSTER_UPDATE", "CHAT_MSG_ADDON", "GUILD_MOTD"}) do
     frame:RegisterEvent(event)
 end
-frame:SetScript("OnEvent", A.traceCallback("Core.lua:657:callback", function(_, event, ...)
+frame:SetScript("OnEvent", A.traceCallback("Core.lua:682:callback", function(_, event, ...)
     if event == "PLAYER_LOGIN" then
         if A.traceLoad then A.traceLoad("core.login.begin", "Core.lua") end
         TartaroDB = TartaroDB or {}
@@ -663,7 +688,7 @@ frame:SetScript("OnEvent", A.traceCallback("Core.lua:657:callback", function(_, 
         refreshRoster()
         requestRoster()
         C_Timer.After(5, request)
-        C_Timer.NewTicker(60, request)
+        C_Timer.NewTicker(syncInterval, request)
         C_Timer.NewTicker(0.35, flush)
         C_Timer.NewTicker(2, A.broadcastPosition)
         C_Timer.NewTicker(1, A.drawPositions)

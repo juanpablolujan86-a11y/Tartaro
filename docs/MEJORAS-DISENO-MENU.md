@@ -546,3 +546,71 @@ El propietario confirma que la diferencia de hora observada correspondía a otro
 Se conservan las condiciones de inscripción, cambio de rol, baja, edición y acciones sobre participantes; los vencidos siguen sin controles. No cambian fechas almacenadas, anuncios UTC, agrupación local ni selección por clic. No se instala ni se interactúa con el juego. Verificación estática: compilación Lua 5.1, XML, caracteres, TOC y recursos; pendiente revisión visual y funcional en Forever, sin simulaciones ni afirmación de E2E.
 
 Autorizada la sustitución del commit local y remoto de la propuesta 0.2.0 manteniendo el mensaje original byte por byte. El push usa force-with-lease contra el SHA previamente observado de la rama de mejoras. El título y cuerpo originales del PR #15 se conservan; no se modifica main ni se ejecuta merge o auto-merge.
+
+## Presencia de Tártaro en Miembros — 25/11/2026
+
+Base main/44aa65e (0.2.0). El propietario autoriza mejorar la detección y ordena expresamente no realizar commit al terminar porque continuará con otros cambios. Posteriormente confirma 0.2.1 para esta revisión local; se actualizan TOC, LEEME y CHANGELOG. Implementación local sin commit, publicación ni instalación.
+
+Core.addonPresence devuelve un estado único para consumo de UI: Activo si el personaje está conectado y hay mensaje reconocido recibido hace menos de 150 segundos en esta sesión; Sin confirmar si está conectado y tiene detección histórica sin confirmación reciente; Histórico si tiene detección guardada sin conexión confirmada; Sin detectar si no existe registro. El personaje local conectado está activo por ejecución del propio addon. La conexión sigue dependiendo del roster de WoW y no se deduce del silencio de red.
+
+addonSeen conserva la fecha recibida mediante GetServerTime. sessionSeen guarda GetTime solo en memoria, sin migración ni cambio de SavedVariables o protocolo. No hereda actividad de la ejecución anterior. Los cambios de hermandad y las desconexiones observadas invalidan confirmaciones; el histórico no se borra. La recepción directa de cualquier acción reconocida renueva la confirmación, con registro presence.changed al cambiar el estado. No se replican detecciones de terceros ni se afirma poder certificar una instalación actual.
+
+Se reutiliza Q cada 60 segundos como mensaje periódico ya existente. El umbral de 150 segundos permite dos intervalos más 30 segundos de margen, sin garantía sobre entrega o cola. No se agregan mensajes, temporizadores, dependencias ni consultas adicionales al servidor. El ticker existente de UI comprueba cada 5 segundos solo con Miembros visible y solicita refresco únicamente al detectar cambio de estado frente al último render; abrir la vista calcula el estado actual. Caducidad lógica a los 150 segundos, presentación en el siguiente ciclo de UI y su agrupación de 0,08 segundos, sujeta a ejecución del cliente.
+
+La tabla conserva anchos, scroll, orden por conexión/nombre y opción de ordenar por detección histórica; verde queda reservado a Activo. Tooltip por fila con significado del estado y fecha/hora local del último mensaje; en la fila propia se identifica como registro local. El propio personaje no abre menú de acciones. Susurro/invitación mantienen las revalidaciones existentes. Se oculta el tooltip al salir, ocultar/reutilizar la fila o abrir su menú.
+
+Verificación: compilación sintáctica de 19 Lua con Lua 5.1 sin ejecución del addon; XML, caracteres, TOC y recursos correctos; 40 archivos instalables, 535 funciones instrumentadas y 21 llamadas protegidas. Revisado el diff conservando condiciones de permisos y transporte. No hay tests ni simuladores recreados. La comprobación manual en Forever no se ejecutó por la prohibición de controlar el cliente.
+
+Criterios manuales pendientes:
+
+- Con dos miembros conectados, recibir un mensaje del segundo debe mostrar Activo y una fecha real de recepción; no requiere compartir ubicación. El otro cliente mantiene su propia observación independiente.
+- Con el segundo conectado pero su addon sin emitir, dejar pasar 150 segundos: la tabla abierta debe pasar a Sin confirmar en el siguiente ciclo, sin cambiar Conectado ni borrar el último registro. Volver a recibir debe recuperar Activo.
+- Cerrar/reabrir la vista tras la caducidad debe calcular el estado actual, sin conservar el texto anterior por caché.
+- Tras observar desconexión: Desconectado e Histórico. Tras reconexión: no confirmar actividad hasta recibir un nuevo mensaje. Al reiniciar este cliente, los históricos remotos no pasan a Activo solo por cargar SavedVariables.
+- Personaje nunca detectado: Sin detectar; ausencia de datos de conexión: Sin datos. Ningún caso debe afirmar desinstalación por silencio.
+- Verificar legibilidad de las cuatro etiquetas, tooltip de fecha local, orden histórico en ambos sentidos y acciones de susurro/invitación. Cliente previo que emite Q/V/H debe seguir siendo detectado sin protocolo nuevo.
+
+Los plazos son decisiones de implementación aún pendientes de medición en Forever; no son resultados de una prueba E2E.
+
+## Avisos persistentes y tarjetas del día — 25/11/2026
+
+El usuario ordena mantener este trabajo en main local, como parte de 0.2.1, sin commit ni push. Solicita mensaje del día una vez por día o cambio de contenido, eventos solo en su fecha y un recordatorio adicional. Confirma explícitamente que el recordatorio puede aparecer hasta 30 minutos después del inicio. No hay duración en el modelo y no se añade: esa cifra define solo la ventana de aviso. Reitera que los mensajes no deben aparecer en combate, mazmorra ni banda.
+
+UI.lua mantiene notificationHistory por personaje dentro de la base de hermandad, con día local, último texto diario presentado y recibos de eventos del día. La visualización efectiva marca el recibo; no depende de cerrar la ventana y no se reinicia por /reload. El texto se compara por contenido, sin depender de la revisión del mensaje. Cambios A → B → A permiten volver a mostrarlo; vaciarlo no muestra popup y permite que un texto posterior vuelva a considerarse cambiado. La tabla diaria de eventos se renueva al cambiar de día, sin acumular días ilimitadamente.
+
+El aviso diario conserva el público anterior de eventos pendientes de inscripción, pero se limita a eventos de hoy que todavía no comenzaron. La ventana de recordatorio incluye desde 30 minutos antes hasta 30 después para todos, inscritos o no. Si el primer acceso es dentro de esa ventana, el recordatorio consume también el aviso diario para evitar dos popups consecutivos del mismo evento. Se conserva eventReminders por horario, compatible con los registros previos y sin repetición del mismo recordatorio al cruzar medianoche. Si cambian el horario se revalida la cola; no se repite el recordatorio de ese evento dentro del mismo día si ya se mostró.
+
+Se reutiliza el ticker de avisos de 5 segundos para detectar ventana de recordatorio y cambio de día. La cola descarta avisos cuyo evento desapareció, cambió de horario o salió de la ventana. Al empezar, el texto cambia de Empieza en a Comenzó hace; no afirma que el evento siga en curso. El historial de eventos vencidos y las reglas para inscribirse siguen sin cambios.
+
+Popups diarios y de eventos y resumen de chat bloqueados por combate real y tipos de instancia party/raid, independientemente de hideWindowsInCombat para el resto de ventanas. Se añaden PLAYER_ENTERING_WORLD y ZONE_CHANGED_NEW_AREA al observador existente de UI, sin reemplazar los eventos de combate. Se ocultan los avisos al entrar; los ya presentados siguen consumidos y no se reabren al salir. Lo no mostrado queda pendiente y no se consume dentro del bloqueo. Al salir se reevalúa; un evento que ya pasó la ventana no se anuncia tarde. El mensaje diario que ya había sido mostrado no se repite solo por salir de combate. Las reglas específicas de llamados y la visibilidad de otras ventanas se conservan.
+
+El resumen de chat usa print, no SendChatMessage: una línea por ID de evento de hoy y carga, en orden de hora, con hora local y título; incorpora registros que lleguen después por sincronización. No lista fechas futuras ni repite cada tick. Si la carga es dentro de un bloqueo, queda sin consumir hasta salir. Un día nuevo permite listar los eventos de ese día. No reinicia los recibos de popups ni modifica los anuncios manuales al crear eventos, que conservan UTC.
+
+Calendario reutiliza Calendar.group, ya ordenado por hora/ID, y renderiza todas las tarjetas del día, eliminando el selector. Día/conteo permanecen en la cabecera fija del componente existente, con el scroll aplicado solo al contenido de tarjetas y la cuadrícula inmóvil. Selección en la cuadrícula y navegación desde Inicio/aviso/guardado llevan la tarjeta correspondiente a la vista. UI guarda ese estado en el marco calendarPanel. RenderEvent mantiene literalmente el cuerpo de la tarjeta previa, salvo índice, resaltado y registro de posición: comparación estática de texto normalizado correcta para contenido, acciones, callbacks y permisos. Cada cierre usa el parámetro de su propio evento, sin reutilizar el seleccionado global como destinatario.
+
+La compilación detectó el límite de 200 variables locales de Lua 5.1 en UI.lua. Resuelto agrupando estado de notificaciones y almacenando el estado de presentación en el marco existente. No se añade módulo ni dependencia. La compilación posterior fue correcta. Las etiquetas de trazabilidad se ajustan a sus líneas actuales; notification.shown registra día, ID/horario y tipo al presentar un aviso. Debug sigue apagado por defecto.
+
+Verificación estática: 19 Lua compilados con Lua 5.1, XML/caracteres/TOC/recursos, versión 0.2.1 y 40 archivos instalables. Se conservan 535 funciones instrumentadas y 21 llamadas protegidas. Diff sin problemas de espacios. No se ejecuta el addon, simulaciones o pruebas de APIs inventadas; tests conserva únicamente los tres documentos previos. No se instala, publica ni crea commit o ZIP.
+
+Criterios de comprobación manual pendientes en Forever:
+
+- Cerrar mensaje diario y usar /reload: no repetirlo; cambiar contenido y día local: permitir un nuevo aviso. Repetir con dos personajes para comprobar registros independientes.
+- Evento para hoy a más de 30 minutos: aviso diario una vez si no está inscrito. Evento de otro día: sin popup diario. Inscrito: conserva ausencia del aviso de inscripción pendiente, pero recibe recordatorio.
+- En -30 minutos: un recordatorio adicional; cerrar y recargar sin repetir. Entrar por primera vez en -15, +0 o +20 minutos: solo recordatorio. Más de +30: ninguno. Revisar medianoche, cambio de horario y eliminación con avisos en cola.
+- Combate con la preferencia general en ambos estados, mazmorra y banda: no mostrar popups ni resumen de chat. Salir durante una ventana vigente permite pendientes; salir después no ofrece recordatorios caducados. Un aviso ya mostrado no vuelve a abrirse al salir.
+- Chat: una línea por evento de hoy por carga, también eventos ya comenzados o inscritos; nunca envío a la guild ni repetición por tick. Registros recibidos después se listan una vez. Entrada bloqueada difiere las líneas hasta salir.
+- Día con cero, uno y varios eventos: todas las tarjetas ordenadas; solo el cuerpo lateral se desplaza, fecha y cuadrícula fijas. Pulsar segundo evento y abrirlo desde Inicio o aviso enfoca su tarjeta. Comprobar inscripción/cambio/baja/edición en su evento correcto, permisos y vencidos de solo lectura con inscritos.
+
+Ningún criterio manual anterior se declara ejecutado. Implementación en revisión pendiente de uso real; se mantienen los cambios locales previos de presencia.
+
+
+## Extensión del bloqueo de avisos a BG y arenas — 25/11/2026
+
+Por autorización expresa, daily.NotificationsBlocked incluye IsInInstance con tipos pvp y arena, además de party/raid y combate. El cambio se aplica mediante el guard compartido a los popups diarios y de eventos, resumen local de chat y ocultación al cambiar de zona. Se conservan las ventanas temporales, los recibos persistentes y las reglas de avisos pendientes. No cambia los llamados ni las demás ventanas. Main local 0.2.1, sin commit, push o instalación.
+
+Verificación de sintaxis Lua 5.1 y recursos; pendiente comprobación manual dentro y fuera de BG/arenas, también sin combate. Debe impedir mostrar/consumir avisos pendientes dentro y reevaluarlos al salir si siguen vigentes. No se ejecutó el cliente ni simulaciones.
+
+
+## Commit local e instalación autorizados — 25/11/2026
+
+El usuario autoriza commit local en main de los cambios acumulados 0.2.1 y posterior copia a Forever para sus pruebas. Esta instrucción reemplaza la restricción temporal de no hacer commit; no autoriza push, merge remoto o publicación. Se conserva el historial de desarrollo anterior. Antes de copiar se comprueban sintaxis Lua 5.1, XML, caracteres, TOC/recursos y diff. La copia se verifica archivo por archivo con SHA256 y conteo exacto, sin interacción con el juego ni cambios a SavedVariables. No se crean backups o ZIP. El SHA del commit y resultado real de la instalación se registran después en el resumen de sesión del workspace; las pruebas dentro del cliente siguen pendientes del usuario.

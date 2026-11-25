@@ -125,7 +125,7 @@ local page, selectedEvent = "home", nil
 local professionView = "recipes"
 local components = A.UIComponents.create({content=content,scroll=scroll,header=content.sectionHeader,
     text=text,button=copperButton,onHeaderHeight=A.traceCallback("UI.lua:127:callback", function(height)
-        scroll:SetPoint("TOPLEFT",sidebarWidth+18,-(headerHeight+18+height))
+        scroll:SetPoint("TOPLEFT",page == "calendar" and sidebarWidth+698 or sidebarWidth+18,-(headerHeight+18+height))
     end)})
 local layout = components.layout
 local row,line,tableRow,button,check = components.Row,components.Line,components.TableRow,components.Button,components.Check
@@ -454,6 +454,12 @@ local positionNotice; positionNotice = A.traceCallback("UI.lua:419:positionNotic
 end)
 
 local daily = surface("TartaroDaily", 550, 146, 205)
+daily.NotificationsBlocked = A.traceCallback("UI.notificationsBlocked", function()
+    local inside, kind = IsInInstance()
+    return inCombat or InCombatLockdown and InCombatLockdown()
+        or UnitAffectingCombat and UnitAffectingCombat("player")
+        or inside and (kind == "party" or kind == "raid" or kind == "pvp" or kind == "arena")
+end)
 daily:SetBackdropColor(0.095, 0.075, 0.078, 1)
 badge(daily, 72)
 local dailyTitle = text(daily, "Mensaje del día", "GameFontNormalLarge")
@@ -462,7 +468,7 @@ local dailyBody = text(daily, "")
 dailyBody:SetPoint("TOPLEFT", 103, -47)
 dailyBody:SetWidth(393)
 
-local dailyMessage; dailyMessage = A.traceCallback("UI.lua:465:dailyMessage", function()
+local dailyMessage; dailyMessage = A.traceCallback("UI.lua:471:dailyMessage", function()
     if A.db.daily then return A.db.daily.text, A.db.daily.rev end
     local motd = (C_GuildInfo and C_GuildInfo.GetMOTD) or GetGuildRosterMOTD
     local value = motd and motd()
@@ -470,13 +476,24 @@ local dailyMessage; dailyMessage = A.traceCallback("UI.lua:465:dailyMessage", fu
     return A.clean(value), 0
 end)
 
-local dailyState = {dismissed = {}}
+local dailyState = {}
+local notificationHistory; notificationHistory = A.traceCallback("UI.notificationHistory", function()
+    if not A.db or not A.self then return end
+    local day = A.Calendar.dayKey(GetServerTime())
+    A.db.notificationHistory = A.db.notificationHistory or {}
+    local history = A.db.notificationHistory[A.self]
+    if not history or history.day ~= day then
+        history = {day=day, events={}}
+        A.db.notificationHistory[A.self] = history
+    end
+    return history
+end)
 local eventPopup
 local noticeAnchor = CreateFrame("Frame", nil, UIParent)
 noticeAnchor:SetMovable(true)
 noticeAnchor:SetClampedToScreen(true)
 
-local layoutNotices; layoutNotices = A.traceCallback("UI.lua:479:layoutNotices", function()
+local layoutNotices; layoutNotices = A.traceCallback("UI.lua:496:layoutNotices", function()
     local showDaily = daily:IsShown()
     local showEvent = eventPopup and eventPopup:IsShown()
     local showMain = win:IsShown()
@@ -516,7 +533,7 @@ local layoutNotices; layoutNotices = A.traceCallback("UI.lua:479:layoutNotices",
         noticeAnchor:SetPoint("TOP", UIParent, "BOTTOMLEFT", x, y)
     end
     local offset = 0
-    local place; place = A.traceCallback("UI.lua:519:place", function(frame)
+    local place; place = A.traceCallback("UI.lua:536:place", function(frame)
         frame:SetScale(scale)
         frame:ClearAllPoints()
         frame:SetPoint("TOP", noticeAnchor, "TOP", 0, -offset)
@@ -530,7 +547,7 @@ local layoutNotices; layoutNotices = A.traceCallback("UI.lua:479:layoutNotices",
     end
 end)
 
-local stopNoticeDrag; stopNoticeDrag = A.traceCallback("UI.lua:533:stopNoticeDrag", function(frame)
+local stopNoticeDrag; stopNoticeDrag = A.traceCallback("UI.lua:550:stopNoticeDrag", function(frame)
     local target = frame.dragTarget
     if not target then return end
     frame.dragTarget = nil
@@ -550,8 +567,8 @@ local stopNoticeDrag; stopNoticeDrag = A.traceCallback("UI.lua:533:stopNoticeDra
     layoutNotices()
 end)
 
-local enableNoticeDrag; enableNoticeDrag = A.traceCallback("UI.lua:553:enableNoticeDrag", function(frame)
-    frame:SetScript("OnDragStart", A.traceCallback("UI.lua:554:callback", function(self)
+local enableNoticeDrag; enableNoticeDrag = A.traceCallback("UI.lua:570:enableNoticeDrag", function(frame)
+    frame:SetScript("OnDragStart", A.traceCallback("UI.lua:571:callback", function(self)
         local target = self == win and not win.stackPoint and win or noticeAnchor
         if target == noticeAnchor then noticeAnchor.dragging = true end
         self.dragTarget = target
@@ -561,32 +578,28 @@ local enableNoticeDrag; enableNoticeDrag = A.traceCallback("UI.lua:553:enableNot
     frame:HookScript("OnHide", stopNoticeDrag)
 end)
 
-local showDaily; showDaily = A.traceCallback("UI.lua:564:showDaily", function()
+local showDaily; showDaily = A.traceCallback("UI.lua:581:showDaily", function()
     if dailyState.db ~= A.db then
-        dailyState = {db = A.db, dismissed = {}}
+        dailyState = {db = A.db}
         if A.db then
             local state = dailyState
-            C_Timer.After(6, A.traceCallback("UI.lua:569:callback", function()
+            C_Timer.After(6, A.traceCallback("UI.lua:586:callback", function()
                 if dailyState ~= state or A.db ~= state.db then return end
                 state.ready = true
                 showDaily()
             end))
         end
     end
-    if not A.db or not dailyState.ready or combatWindowsBlocked() then
+    if not A.db or not dailyState.ready or daily.NotificationsBlocked() then
         daily:Hide()
         layoutNotices()
         return
     end
-    local day = date("%Y-%m-%d", GetServerTime())
-    if dailyState.day ~= day then
-        dailyState.day = day
-        dailyState.dismissed = {}
-    end
+    local history = notificationHistory()
+    if not history then return end
     local value = dailyMessage()
-    if not value or value == "" then daily:Hide(); layoutNotices(); return end
-    local key = value:gsub("%s+", " ")
-    if dailyState.dismissed[key] or editor:IsShown() then
+    if not value or value == "" then history.daily = nil; daily:Hide(); layoutNotices(); return end
+    if editor:IsShown() or history.daily == value and (not daily:IsShown() or dailyState.body ~= value) then
         daily:Hide()
         layoutNotices()
         return
@@ -596,18 +609,20 @@ local showDaily; showDaily = A.traceCallback("UI.lua:564:showDaily", function()
         dailyBody:SetText(value)
         daily:SetHeight(math.max(110, dailyBody:GetStringHeight() + 66))
     end
-    dailyState.visibleKey = key
+    if history.daily ~= value then
+        history.daily = value
+        A.debugLog("notification.shown", "UI.daily", {day=history.day})
+    end
     if not daily:IsShown() then daily:Show() end
     layoutNotices()
 end)
 
 enableNoticeDrag(daily)
 enableNoticeDrag(win)
-daily.closeButton:HookScript("OnClick", A.traceCallback("UI.lua:606:callback", function()
-    if dailyState.visibleKey then dailyState.dismissed[dailyState.visibleKey] = true end
+daily.closeButton:HookScript("OnClick", A.traceCallback("UI.lua:622:callback", function()
     layoutNotices()
 end))
-win:HookScript("OnHide", A.traceCallback("UI.lua:610:callback", function() C_Timer.After(0, showDaily) end))
+win:HookScript("OnHide", A.traceCallback("UI.lua:625:callback", function() C_Timer.After(0, showDaily) end))
 win:HookScript("OnDragStop", showDaily)
 editor:HookScript("OnShow", showDaily)
 
@@ -627,57 +642,72 @@ viewEvent:SetPoint("BOTTOMRIGHT", -16, 14)
 viewEvent:SetText("Ver en el calendario")
 viewEvent:SetStyle(false, true)
 local pendingEvents, activeNotice = {}, nil
-local offeredEvents, scheduledReminders = {}, {}
-local reminderLead = 30 * 60
+local eventNotices = {offered={}, scheduled={}, chat={}, lead=30*60}
 
-local pendingEvent; pendingEvent = A.traceCallback("UI.lua:633:pendingEvent", function(id)
+local pendingEvent; pendingEvent = A.traceCallback("UI.pendingEvent", function(id)
     if not A.db then return end
     local event = A.db.events[id]
-    if not event or event.when <= GetServerTime() then return end
+    local now = GetServerTime()
+    if not event or event.when <= now or A.Calendar.dayKey(event.when) ~= A.Calendar.dayKey(now)
+        or event.when - now <= eventNotices.lead then return end
     local signups = A.db.signups[id]
     local mine = signups and signups[A.self]
     if not (mine and mine.joined) then return event end
 end)
 
-local noticeEvent; noticeEvent = A.traceCallback("UI.lua:642:noticeEvent", function(notice)
+local noticeEvent; noticeEvent = A.traceCallback("UI.noticeEvent", function(notice)
     if not notice or A.db ~= notice.db then return end
-    if not notice.reminderAt then
-        local event = pendingEvent(notice.id)
-        if event and scheduledReminders[notice.id] ~= event.when then return event end
-        return
-    end
+    local history = notificationHistory()
+    if not history or notice.day ~= history.day then return end
+    local receipt = history.events[notice.id] or {}
+    local kind = notice.reminderAt and "reminder" or "daily"
+    if receipt[kind] and notice ~= activeNotice then return end
+    if not notice.reminderAt then return pendingEvent(notice.id) end
     local event = A.db.events[notice.id]
     local remaining = event and event.when - GetServerTime()
-    if event and event.when == notice.reminderAt and remaining > 0 and remaining <= reminderLead then
+    if event and event.when == notice.reminderAt and remaining >= -eventNotices.lead and remaining <= eventNotices.lead then
         return event, remaining
     end
 end)
 
-local setPopupBody; setPopupBody = A.traceCallback("UI.lua:656:setPopupBody", function(event, remaining)
+local setPopupBody; setPopupBody = A.traceCallback("UI.setPopupBody", function(event, remaining)
     local timing = ""
     if remaining then
-        local minutes = math.ceil(remaining / 60)
-        timing = "\nEmpieza en " .. minutes .. (minutes == 1 and " minuto." or " minutos.")
+        if remaining > 0 then
+            local minutes = math.ceil(remaining / 60)
+            timing = "\nEmpieza en " .. minutes .. (minutes == 1 and " minuto." or " minutos.")
+        else
+            local minutes = math.floor(-remaining / 60)
+            timing = minutes == 0 and "\nEl evento acaba de comenzar."
+                or "\nComenzó hace " .. minutes .. (minutes == 1 and " minuto." or " minutos.")
+        end
     end
     popupBody:SetText(event.title .. "\n" .. A.kinds[event.kind] .. " · "
         .. date("%d/%m/%Y %H:%M", event.when) .. " (hora local)" .. timing)
 end)
 
-A.showEventNotification = A.traceCallback("UI.lua:666:A.showEventNotification", function()
-    if eventPopup:IsShown() or editor:IsShown() or combatWindowsBlocked() then return end
+A.showEventNotification = A.traceCallback("UI.showEventNotification", function()
+    if eventPopup:IsShown() or editor:IsShown() or daily.NotificationsBlocked() then return end
     while #pendingEvents > 0 do
         local notice = table.remove(pendingEvents, 1)
         local event, remaining = noticeEvent(notice)
         if event then
+            local history = notificationHistory()
+            local receipt = history.events[notice.id] or {}
+            history.events[notice.id] = receipt
+            receipt.daily = true
             activeNotice = notice
             if notice.reminderAt then
+                receipt.reminder = true
                 local records = A.db.eventReminders[notice.id] or {}
                 A.db.eventReminders[notice.id] = records
                 records[A.self] = event.when
-                popupTitle:SetText("El evento empieza pronto")
+                popupTitle:SetText(remaining > 0 and "El evento empieza pronto" or "El evento ya comenzó")
             else
-                popupTitle:SetText(notice.isNew and "Nuevo evento de hermandad" or "Evento pendiente")
+                popupTitle:SetText("Evento de hoy")
             end
+            A.debugLog("notification.shown", "UI.event", {id=event.id, when=event.when, day=history.day,
+                kind=notice.reminderAt and "reminder" or "daily"})
             setPopupBody(event, remaining)
             eventPopup:SetHeight(math.max(138, popupBody:GetStringHeight() + 104))
             eventPopup:Show()
@@ -686,70 +716,82 @@ A.showEventNotification = A.traceCallback("UI.lua:666:A.showEventNotification", 
     end
 end)
 
-A.notifyEvent = A.traceCallback("UI.lua:689:A.notifyEvent", function(id, isNew)
-    if offeredEvents[id] or not pendingEvent(id) then return end
-    offeredEvents[id] = true
-    pendingEvents[#pendingEvents + 1] = {id = id, db = A.db, isNew = isNew}
+A.notifyEvent = A.traceCallback("UI.notifyEvent", function(id, isNew)
+    local history = notificationHistory()
+    if not history or eventNotices.offered[id] == history.day or not pendingEvent(id)
+        or history.events[id] and history.events[id].daily then return end
+    eventNotices.offered[id] = history.day
+    pendingEvents[#pendingEvents + 1] = {id=id, db=A.db, isNew=isNew, day=history.day}
     A.showEventNotification()
 end)
 
-local sortEvents; sortEvents = A.traceCallback("UI.lua:696:sortEvents", function(events)
-    table.sort(events, A.traceCallback("UI.lua:697:callback", function(left, right)
+local sortEvents; sortEvents = A.traceCallback("UI.lua:728:sortEvents", function(events)
+    table.sort(events, A.traceCallback("UI.lua:729:callback", function(left, right)
         return left.when < right.when or (left.when == right.when and left.id < right.id)
     end))
 end)
 
-local checkEventReminders; checkEventReminders = A.traceCallback("UI.lua:702:checkEventReminders", function()
+local checkEventReminders; checkEventReminders = A.traceCallback("UI.checkEventReminders", function()
     if not A.db then return end
-    if activeNotice and activeNotice.reminderAt then
+    if daily.NotificationsBlocked() then return end
+    local history = notificationHistory()
+    if not history then return end
+    showDaily()
+    if activeNotice then
         local event, remaining = noticeEvent(activeNotice)
-        if event then setPopupBody(event, remaining) else eventPopup:Hide() end
-    end
-    local due, now = {}, GetServerTime()
-    for id, event in pairs(A.db.events) do
-        local records = A.db.eventReminders[id]
-        if event.when > now and event.when - now <= reminderLead and scheduledReminders[id] ~= event.when
-            and (not records or records[A.self] ~= event.when) then
-            due[#due + 1] = event
-            scheduledReminders[id] = event.when
+        if not event then
+            eventPopup:Hide()
+        elseif activeNotice.reminderAt then
+            popupTitle:SetText(remaining > 0 and "El evento empieza pronto" or "El evento ya comenzó")
+            setPopupBody(event, remaining)
         end
     end
-    if #due == 0 then return end
+    local events, due, now = {}, {}, GetServerTime()
+    if eventNotices.chatContext ~= A.db or eventNotices.chatDay ~= history.day then
+        eventNotices.chat, eventNotices.chatContext, eventNotices.chatDay = {}, A.db, history.day
+        eventNotices.offered, eventNotices.scheduled = {}, {}
+    end
+    for id, event in pairs(A.db.events) do
+        events[#events + 1] = event
+        local records = A.db.eventReminders[id]
+        local receipt = history.events[id]
+        local remaining = event.when - now
+        if remaining >= -eventNotices.lead and remaining <= eventNotices.lead and eventNotices.scheduled[id] ~= event.when
+            and (not records or records[A.self] ~= event.when) and (not receipt or not receipt.reminder) then
+            due[#due + 1] = event
+            eventNotices.scheduled[id] = event.when
+        end
+    end
     sortEvents(due)
     for index, event in ipairs(due) do
-        table.insert(pendingEvents, index, {id = event.id, db = A.db, reminderAt = event.when})
+        table.insert(pendingEvents, index, {id=event.id, db=A.db, reminderAt=event.when, day=history.day})
     end
-    if activeNotice and not activeNotice.reminderAt then
-        if not scheduledReminders[activeNotice.id] then
-            pendingEvents[#pendingEvents + 1] = activeNotice
+    if #due > 0 and activeNotice and not activeNotice.reminderAt then eventPopup:Hide() end
+    sortEvents(events)
+    for _, event in ipairs(events) do
+        if A.Calendar.dayKey(event.when) == history.day and not eventNotices.chat[event.id] then
+            eventNotices.chat[event.id] = true
+            print("Tártaro · Evento de hoy: " .. date("%H:%M", event.when) .. " · " .. event.title .. " (hora local)")
         end
-        eventPopup:Hide()
+        A.notifyEvent(event.id, false)
     end
     A.showEventNotification()
 end)
 C_Timer.NewTicker(5, checkEventReminders)
 
-A.queuePendingEvents = A.traceCallback("UI.lua:732:A.queuePendingEvents", function()
-    pendingEvents, offeredEvents, scheduledReminders = {}, {}, {}
+A.queuePendingEvents = A.traceCallback("UI.queuePendingEvents", function()
+    pendingEvents, eventNotices.offered, eventNotices.scheduled, activeNotice = {}, {}, {}, nil
     if eventPopup:IsShown() then eventPopup:Hide() end
-    if not A.db then return end
-    local events = {}
-    for id in pairs(A.db.events) do
-        local event = pendingEvent(id)
-        if event then events[#events + 1] = event end
-    end
-    sortEvents(events)
     checkEventReminders()
-    for _, event in ipairs(events) do A.notifyEvent(event.id, false) end
 end)
 
-eventPopup:SetScript("OnHide", A.traceCallback("UI.lua:746:callback", function()
+eventPopup:SetScript("OnHide", A.traceCallback("UI.lua:788:callback", function()
     activeNotice = nil
     A.showEventNotification()
     showDaily()
 end))
 enableNoticeDrag(eventPopup)
-viewEvent:SetScript("OnClick", A.traceCallback("UI.lua:752:callback", function()
+viewEvent:SetScript("OnClick", A.traceCallback("UI.lua:794:callback", function()
     if editor:IsShown() then return end
     local notice = activeNotice
     eventPopup:Hide()
@@ -764,7 +806,7 @@ end))
 local accent = {1, 0.72, 0.46}
 local selectedOrder, pendingOrderScroll, orderFocusY, orderNotice
 
-local openOrders; openOrders = A.traceCallback("UI.lua:767:openOrders", function(id)
+local openOrders; openOrders = A.traceCallback("UI.lua:809:openOrders", function(id)
     if not A.db then return end
     selectedOrder, pendingOrderScroll, orderNotice = id, id ~= nil, nil
     page, professionView = "professions", "orders"
@@ -775,7 +817,7 @@ local openOrders; openOrders = A.traceCallback("UI.lua:767:openOrders", function
         id == nil or selectedOrder == id or orderNotice ~= nil)
 end)
 
-local orderShortcut; orderShortcut = A.traceCallback("UI.lua:778:orderShortcut", function(order, summary)
+local orderShortcut; orderShortcut = A.traceCallback("UI.lua:820:orderShortcut", function(order, summary)
     local frame = row()
     frame.button:SetWidth(layout.width - 8)
     frame.button:SetText(summary)
@@ -786,7 +828,7 @@ local orderShortcut; orderShortcut = A.traceCallback("UI.lua:778:orderShortcut",
     frame.button:SetHeight(height)
     frame.button:SetStyle(false)
     local db, id = A.db, order.id
-    frame.button:SetScript("OnClick", A.traceCallback("UI.lua:789:callback", function()
+    frame.button:SetScript("OnClick", A.traceCallback("UI.lua:831:callback", function()
         if A.db == db then openOrders(id) end
     end))
     frame.button:Show()
@@ -794,7 +836,7 @@ local orderShortcut; orderShortcut = A.traceCallback("UI.lua:778:orderShortcut",
     layout.y = layout.y + height + 8
 end)
 
-local home; home = A.traceCallback("UI.lua:797:home", function()
+local home; home = A.traceCallback("UI.lua:839:home", function()
     local now, nextEvent = GetServerTime()
     for _, event in pairs(A.db.events) do
         if event.when > now and (not nextEvent or event.when < nextEvent.when
@@ -809,7 +851,7 @@ local home; home = A.traceCallback("UI.lua:797:home", function()
         line(nextEvent.title)
         line(date("%d/%m/%Y · %H:%M", nextEvent.when) .. " (hora local)")
         if nextEvent.detail ~= "" then line(nextEvent.detail) end
-        button("Ver evento", A.traceCallback("UI.lua:812:callback", function()
+        button("Ver evento", A.traceCallback("UI.lua:854:callback", function()
             page, selectedEvent = "calendar", nextEvent.id
             scroll:SetVerticalScroll(0)
             A.refresh()
@@ -822,7 +864,7 @@ local home; home = A.traceCallback("UI.lua:797:home", function()
     line("Mensaje del día", accent)
     local message = dailyMessage()
     line(message ~= "" and message or "Todavía no hay mensaje del día.")
-    button("Ver avisos", A.traceCallback("UI.lua:825:callback", function()
+    button("Ver avisos", A.traceCallback("UI.lua:867:callback", function()
         page = "notices"
         scroll:SetVerticalScroll(0)
         A.refresh()
@@ -857,18 +899,18 @@ local home; home = A.traceCallback("UI.lua:797:home", function()
     layout.x, layout.width, layout.y = 0, 570, math.max(layout.y, requestedHeight)
     homeOrdersDivider:SetPoint("TOPLEFT", 319, -listTop)
     homeOrdersDivider:SetHeight(layout.y - listTop)
-    button("Ver pedidos", A.traceCallback("UI.lua:860:callback", function()
+    button("Ver pedidos", A.traceCallback("UI.lua:902:callback", function()
         openOrders()
     end))
 end)
 
-local whisperTarget; whisperTarget = A.traceCallback("UI.lua:865:whisperTarget", function(name)
+local whisperTarget; whisperTarget = A.traceCallback("UI.lua:907:whisperTarget", function(name)
     local character, suffix = name:match("^(.-)%-([^%-]+)$")
     if character and suffix and A.key(suffix) == A.realm then return character end
     return name
 end)
 
-local openWhisperDraft; openWhisperDraft = A.traceCallback("UI.lua:871:openWhisperDraft", function(target, draft)
+local openWhisperDraft; openWhisperDraft = A.traceCallback("UI.lua:913:openWhisperDraft", function(target, draft)
     local chat = ChatFrameUtil
     if chat and chat.OpenChat and chat.ChooseBoxForSend then
         chat.OpenChat("")
@@ -884,26 +926,26 @@ local openWhisperDraft; openWhisperDraft = A.traceCallback("UI.lua:871:openWhisp
     end
 end)
 
-local canInviteMember; canInviteMember = A.traceCallback("UI.lua:887:canInviteMember", function(member)
+local canInviteMember; canInviteMember = A.traceCallback("UI.lua:929:canInviteMember", function(member)
     if member.online ~= true then return false end
     if not IsInGroup() then return true end
     local leader = UnitIsGroupLeader("player")
     return (not issecretvalue or not issecretvalue(leader)) and leader == true
 end)
 
-local invitationActions; invitationActions = A.traceCallback("UI.lua:894:invitationActions", function(root, currentParticipant, allowed)
+local invitationActions; invitationActions = A.traceCallback("UI.lua:936:invitationActions", function(root, currentParticipant, allowed)
     local member = currentParticipant()
     if not member then return end
-    local canInvite; canInvite = A.traceCallback("UI.lua:897:canInvite", function(target)
+    local canInvite; canInvite = A.traceCallback("UI.lua:939:canInvite", function(target)
         return target and target.online ~= false and (not allowed or allowed(target))
     end)
     local inRaid = IsInRaid()
-    local invite = root:CreateButton(inRaid and "Invitar a la banda" or "Invitar al grupo", A.traceCallback("UI.lua:901:callback", function()
+    local invite = root:CreateButton(inRaid and "Invitar a la banda" or "Invitar al grupo", A.traceCallback("UI.lua:943:callback", function()
         local target = currentParticipant()
         if not canInvite(target) then return end
         local send = C_PartyInfo and C_PartyInfo.InviteUnit or InviteUnit
         if send then
-            local ok, result = A.debugPcall("UI.lua:906:pcall", send, target.name)
+            local ok, result = A.debugPcall("UI.lua:948:pcall", send, target.name)
             if ok and result ~= false then return end
         end
         if ChatFrame_OpenChat then
@@ -917,7 +959,7 @@ local invitationActions; invitationActions = A.traceCallback("UI.lua:894:invitat
     local isLeader = IsInGroup() and UnitIsGroupLeader("player")
     if convert and not inRaid and (not issecretvalue or not issecretvalue(isLeader)) and isLeader
         and (not allowed or allowed(member)) then
-        root:CreateButton("Convertir grupo en banda", A.traceCallback("UI.lua:920:callback", function()
+        root:CreateButton("Convertir grupo en banda", A.traceCallback("UI.lua:962:callback", function()
             local target = currentParticipant()
             if not target or (allowed and not allowed(target)) or IsInRaid() or not IsInGroup() then return end
             local leader = UnitIsGroupLeader("player")
@@ -926,21 +968,21 @@ local invitationActions; invitationActions = A.traceCallback("UI.lua:894:invitat
     end
 end)
 
-local participantActions; participantActions = A.traceCallback("UI.lua:929:participantActions", function(id, label, currentParticipant, allowed)
+local participantActions; participantActions = A.traceCallback("UI.lua:971:participantActions", function(id, label, currentParticipant, allowed)
     local frame = line(label)
     if id == A.self then return end
     if not frame.participantMenu then
         local control = CreateFrame("Button", nil, frame)
         control:SetAllPoints(frame)
         control:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-        control:SetScript("OnEnter", A.traceCallback("UI.lua:936:callback", function() frame.label:SetTextColor(unpack(accent)) end))
-        control:SetScript("OnLeave", A.traceCallback("UI.lua:937:callback", function() frame.label:SetTextColor(0.96, 0.90, 0.82) end))
+        control:SetScript("OnEnter", A.traceCallback("UI.lua:978:callback", function() frame.label:SetTextColor(unpack(accent)) end))
+        control:SetScript("OnLeave", A.traceCallback("UI.lua:979:callback", function() frame.label:SetTextColor(0.96, 0.90, 0.82) end))
         frame.participantMenu = components.Attach(frame,control)
     end
-    frame.participantMenu:SetScript("OnClick", A.traceCallback("UI.lua:940:callback", function(owner)
+    frame.participantMenu:SetScript("OnClick", A.traceCallback("UI.lua:982:callback", function(owner)
         local member = currentParticipant()
         if not member then return end
-        MenuUtil.CreateContextMenu(owner, A.traceCallback("UI.lua:943:callback", function(_, root)
+        MenuUtil.CreateContextMenu(owner, A.traceCallback("UI.lua:985:callback", function(_, root)
             root:CreateTitle(member.name)
             invitationActions(root, currentParticipant, allowed)
         end))
@@ -948,9 +990,9 @@ local participantActions; participantActions = A.traceCallback("UI.lua:929:parti
     frame.participantMenu:Show()
 end)
 
-local eventParticipant; eventParticipant = A.traceCallback("UI.lua:951:eventParticipant", function(event, entry, label)
+local eventParticipant; eventParticipant = A.traceCallback("UI.lua:993:eventParticipant", function(event, entry, label)
     local db, id, eventId = A.db, entry.id, event.id
-    participantActions(id, label, A.traceCallback("UI.lua:953:callback", function()
+    participantActions(id, label, A.traceCallback("UI.lua:995:callback", function()
         if A.db ~= db or not A.canEditEvent(A.me, eventId) then return end
         local current = db.events[eventId]
         local signups = db.signups[eventId]
@@ -959,9 +1001,9 @@ local eventParticipant; eventParticipant = A.traceCallback("UI.lua:951:eventPart
     end))
 end)
 
-local groupParticipant; groupParticipant = A.traceCallback("UI.lua:962:groupParticipant", function(group, id, label)
+local groupParticipant; groupParticipant = A.traceCallback("UI.lua:1004:groupParticipant", function(group, id, label)
     local db = A.db
-    participantActions(id, label, A.traceCallback("UI.lua:964:callback", function()
+    participantActions(id, label, A.traceCallback("UI.lua:1006:callback", function()
         if A.db ~= db or group.owner ~= A.self or A.groups[A.self] ~= group or group.version ~= 1
             or not group.slots or group.when + 1800 <= GetServerTime() or not A.can(A.me, "group") then return end
         local _, _, members = A.groupAttendance(group)
@@ -969,49 +1011,12 @@ local groupParticipant; groupParticipant = A.traceCallback("UI.lua:962:groupPart
     end))
 end)
 
-local calendar; calendar = A.traceCallback("UI.lua:972:calendar", function()
+calendarPanel.RenderEvent = A.traceCallback("UI.calendarEvent", function(current, index)
     local db = A.db
-    local nextWhen
-    for _, event in pairs(db.events) do
-        if event.when > GetServerTime() and (not nextWhen or event.when < nextWhen) then nextWhen=event.when end
-    end
-    win.nextEventAt = nextWhen
-    local current = calendarPanel:Display(db.events, selectedEvent, {
-        context=db, isCurrent=A.traceCallback("UI.lua:980:callback", function() return A.db == db end),
-        canCreate=A.traceCallback("UI.lua:981:callback", function() return A.can(A.me,"event") end),
-        onCreate=A.traceCallback("UI.lua:982:callback", function() openEditor("event") end),
-        onSelect=A.traceCallback("UI.lua:983:callback", function(id)
-            if A.db ~= db then return end
-            selectedEvent=id
-            scroll:SetVerticalScroll(0)
-            A.refresh()
-            A.debugLog("observation", "calendar.select", {id=id, selected=selectedEvent, day=calendarPanel.selectedDay,
-                year=calendarPanel.year, month=calendarPanel.month, detailAfter=scroll:GetVerticalScroll()},
-                "Evento seleccionado y detalle vuelve arriba", selectedEvent or "día sin evento", scroll:GetVerticalScroll() == 0)
-        end),
-    })
-    selectedEvent=current and current.id or nil
-    local dayEvents = calendarPanel:DayEvents()
-    local year,month,day = calendarPanel.selectedDay:match("^(%d+)%-(%d+)%-(%d+)$")
-    line(("Día %s/%s/%s"):format(day,month,year), accent)
-    if #dayEvents > 1 then
-        button("Eventos del día · " .. #dayEvents, A.traceCallback("UI.lua:998:callback", function(owner)
-            if A.db ~= db then return end
-            MenuUtil.CreateContextMenu(owner,A.traceCallback("UI.lua:1000:callback", function(_,root)
-                root:CreateTitle("Eventos del día")
-                for _, event in ipairs(dayEvents) do
-                    local id=event.id
-                    root:CreateButton(date("%H:%M",event.when) .. " · " .. event.title,A.traceCallback("UI.lua:1004:callback", function()
-                        if A.db == db and db.events[id] then calendarPanel:SelectEvent(id) end
-                    end))
-                end
-            end))
-        end))
-    end
-    if not current then line("No hay eventos para este día."); return end
     local cardLeft, cardTop, cardWidth = layout.x, layout.y + 4, layout.width
+    if current.id == selectedEvent then calendarPanel.focusY = cardTop end
     local finishCard; finishCard = A.traceCallback("UI.calendar.finishCard", function()
-        recordCard(1, cardLeft, cardTop, cardWidth, layout.y - cardTop + 12, true)
+        recordCard(index, cardLeft, cardTop, cardWidth, layout.y - cardTop + 12, current.id == selectedEvent)
         layout.x, layout.width, layout.y = cardLeft, cardWidth, layout.y + 24
     end)
     layout.x, layout.width, layout.y = cardLeft + 12, cardWidth - 24, cardTop + 12
@@ -1032,7 +1037,7 @@ local calendar; calendar = A.traceCallback("UI.lua:972:calendar", function()
         for id, signup in pairs(db.signups[current.id] or {}) do
             if signup.joined then registered[#registered+1]={id=id, signup=signup} end
         end
-        table.sort(registered,A.traceCallback("UI.lua:1035:callback", function(a,b)
+        table.sort(registered,A.traceCallback("UI.lua:1040:callback", function(a,b)
             if a.signup.rev ~= b.signup.rev then return (a.signup.rev or 0) < (b.signup.rev or 0) end
             return a.id < b.id
         end))
@@ -1074,7 +1079,7 @@ local calendar; calendar = A.traceCallback("UI.lua:972:calendar", function()
         for i, role in ipairs(A.eventRoleOrder) do
             if current.caps[i] > 0 and (not mine or not mine.joined or mine.role ~= role) then
                 local choice = role
-                button((mine and mine.joined and "Cambiar a " or "Anotarme como ") .. A.eventRoles[choice], A.traceCallback("UI.lua:1077:callback", function()
+                button((mine and mine.joined and "Cambiar a " or "Anotarme como ") .. A.eventRoles[choice], A.traceCallback("UI.lua:1082:callback", function()
                     A.signup(current.id, choice)
                     A.refresh()
                 end), not (mine and mine.joined))
@@ -1083,29 +1088,62 @@ local calendar; calendar = A.traceCallback("UI.lua:972:calendar", function()
     end
     if mine and mine.joined then
         if current.caps then line("Tu inscripción · " .. (status[A.self] or "Elegí un rol"), accent) end
-        button("Quitar mi inscripción", A.traceCallback("UI.lua:1086:callback", function() A.signup(current.id); A.refresh() end))
+        button("Quitar mi inscripción", A.traceCallback("UI.lua:1091:callback", function() A.signup(current.id); A.refresh() end))
     elseif not current.caps then
-        button("Quiero participar", A.traceCallback("UI.lua:1088:callback", function() A.signup(current.id); A.refresh() end), true)
+        button("Quiero participar", A.traceCallback("UI.lua:1093:callback", function() A.signup(current.id); A.refresh() end), true)
     end
     if canEdit then
-        button("Editar evento", A.traceCallback("UI.lua:1091:callback", function() openEditor("event", current) end))
+        button("Editar evento", A.traceCallback("UI.lua:1096:callback", function() openEditor("event", current) end))
     end
     finishCard()
 end)
 
-local notices; notices = A.traceCallback("UI.lua:1096:notices", function()
+local calendar; calendar = A.traceCallback("UI.lua:1101:calendar", function()
+    local db = A.db
+    local nextWhen
+    for _, event in pairs(db.events) do
+        if event.when > GetServerTime() and (not nextWhen or event.when < nextWhen) then nextWhen=event.when end
+    end
+    win.nextEventAt = nextWhen
+    local current = calendarPanel:Display(db.events, selectedEvent, {
+        context=db, isCurrent=A.traceCallback("UI.lua:1109:callback", function() return A.db == db end),
+        canCreate=A.traceCallback("UI.lua:1110:callback", function() return A.can(A.me,"event") end),
+        onCreate=A.traceCallback("UI.lua:1111:callback", function() openEditor("event") end),
+        onSelect=A.traceCallback("UI.lua:1112:callback", function(id)
+            if A.db ~= db then return end
+            selectedEvent=id
+            calendarPanel.pendingFocus = true
+            A.refresh()
+            A.debugLog("observation", "calendar.select", {id=id, selected=selectedEvent, day=calendarPanel.selectedDay,
+                year=calendarPanel.year, month=calendarPanel.month, scroll=scroll:GetVerticalScroll()})
+        end),
+    })
+    selectedEvent=current and current.id or nil
+    if selectedEvent ~= calendarPanel.renderedEvent then calendarPanel.pendingFocus = true end
+    local dayEvents = calendarPanel:DayEvents()
+    local year,month,day = calendarPanel.selectedDay:match("^(%d+)%-(%d+)%-(%d+)$")
+    line(("Día %s/%s/%s"):format(day,month,year), accent)
+    line("Eventos del día: " .. #dayEvents, nil, true)
+    components.BeginTable()
+    calendarPanel.focusY = 0
+    if #dayEvents == 0 then line("No hay eventos para este día.") end
+    for index, event in ipairs(dayEvents) do calendarPanel.RenderEvent(event, index) end
+    calendarPanel.renderedEvent = selectedEvent
+end)
+
+local notices; notices = A.traceCallback("UI.lua:1134:notices", function()
     local allowed = A.can(A.me, "notice")
     line("Mensaje del día", accent)
     local value = dailyMessage()
     line(value ~= "" and value or "Todavía no hay mensaje del día.")
     if allowed then
-        button("Editar mensaje del día", A.traceCallback("UI.lua:1102:callback", function() openEditor("daily") end))
-        button("Publicar aviso", A.traceCallback("UI.lua:1103:callback", function() openEditor("notice") end))
+        button("Editar mensaje del día", A.traceCallback("UI.lua:1140:callback", function() openEditor("daily") end))
+        button("Publicar aviso", A.traceCallback("UI.lua:1141:callback", function() openEditor("notice") end))
     end
     line("Avisos de la hermandad", accent)
     local records = {}
     for _, notice in pairs(A.db.notices) do records[#records + 1] = notice end
-    table.sort(records, A.traceCallback("UI.lua:1108:callback", function(left, right) return left.when > right.when end))
+    table.sort(records, A.traceCallback("UI.lua:1146:callback", function(left, right) return left.when > right.when end))
     if #records == 0 then line("Todavía no hay avisos.") end
     local maxWidth = layout.width
     for index, notice in ipairs(records) do
@@ -1118,7 +1156,7 @@ local notices; notices = A.traceCallback("UI.lua:1096:notices", function()
     end
 end)
 
-local permissions; permissions = A.traceCallback("UI.lua:1121:permissions", function()
+local permissions; permissions = A.traceCallback("UI.lua:1159:permissions", function()
     line("Permisos por rango", accent)
     line("Crear eventos no permite editar eventos ajenos. Solo el creador, el líder y los sublíderes pueden editarlos.")
     if not A.canManagePermissions(A.me) then line("El líder y los sublíderes administran los permisos."); return end
@@ -1139,7 +1177,7 @@ local permissions; permissions = A.traceCallback("UI.lua:1121:permissions", func
             call = "Lanzar llamados a las armas", group = "Publicar búsquedas de grupo"}
         for _, permission in ipairs({"notice", "event", "call", "group"}) do
             local field = permission
-            check(labels[field], A.can(member, field), A.traceCallback("UI.lua:1142:callback", function(enabled)
+            check(labels[field], A.can(member, field), A.traceCallback("UI.lua:1180:callback", function(enabled)
                 A.setGrant(index, field, enabled)
                 A.refresh()
             end))
@@ -1147,7 +1185,7 @@ local permissions; permissions = A.traceCallback("UI.lua:1121:permissions", func
     end
 end)
 
-local callVolume; callVolume = A.traceCallback("UI.lua:1150:callVolume", function()
+local callVolume; callVolume = A.traceCallback("UI.lua:1188:callVolume", function()
     local saved = TartaroDB and TartaroDB.callSoundVolume
     if type(saved) == "number" and saved >= 0 and saved <= 100 and saved % 20 == 0 then return saved end
     return TartaroDB and TartaroDB.callSound == false and 0 or 100
@@ -1158,11 +1196,11 @@ local callSounds = {
     {id = "nature", label = "Nature", file = "CallNature", duration = 4.65},
 }
 
-local selectedCallSound; selectedCallSound = A.traceCallback("UI.lua:1161:selectedCallSound", function()
+local selectedCallSound; selectedCallSound = A.traceCallback("UI.lua:1199:selectedCallSound", function()
     return TartaroDB and TartaroDB.callSoundChoice == "nature" and callSounds[2] or callSounds[1]
 end)
 
-A.playCallSound = A.traceCallback("UI.lua:1165:A.playCallSound", function(isAlert)
+A.playCallSound = A.traceCallback("UI.lua:1203:A.playCallSound", function(isAlert)
     local volume = callVolume()
     if volume == 0 or not PlaySoundFile then return false end
     local suffix = volume == 100 and "" or tostring(volume)
@@ -1186,7 +1224,7 @@ do
     title:SetPoint("TOPLEFT")
     local versionLabel = text(optionsPanel, "")
     versionLabel:SetPoint("TOPRIGHT")
-    A.updateVersionLabel = A.traceCallback("UI.lua:1189:A.updateVersionLabel", function()
+    A.updateVersionLabel = A.traceCallback("UI.lua:1227:A.updateVersionLabel", function()
         local label = A.addonVersion and ("Versión " .. A.addonVersion) or "Versión sin datos"
         if A.newerAddonVersion then label = label .. " · Detectada " .. A.newerAddonVersion end
         versionLabel:SetText(label)
@@ -1222,12 +1260,12 @@ do
         if percent then sizeValue:SetText("Tamaño del botón · " .. percent .. "%") end
     end))
     local handle
-    local stopPreview; stopPreview = A.traceCallback("UI.lua:1225:stopPreview", function()
+    local stopPreview; stopPreview = A.traceCallback("UI.lua:1263:stopPreview", function()
         if handle and StopSound then StopSound(handle) end
         handle = nil
     end)
     local soundButtons = {}
-    local showSoundChoice; showSoundChoice = A.traceCallback("UI.lua:1230:showSoundChoice", function()
+    local showSoundChoice; showSoundChoice = A.traceCallback("UI.lua:1268:showSoundChoice", function()
         local selected = selectedCallSound().id
         for id, control in pairs(soundButtons) do control:SetStyle(id == selected) end
     end)
@@ -1237,7 +1275,7 @@ do
         control:SetPoint("TOPLEFT", index == 1 and 0 or 198, -34)
         control:SetSize(index == 1 and 188 or 114, 27)
         control:SetText(sound.label)
-        control:SetScript("OnClick", A.traceCallback("UI.lua:1240:callback", function()
+        control:SetScript("OnClick", A.traceCallback("UI.lua:1278:callback", function()
             stopPreview()
             TartaroDB.callSoundChoice = id
             showSoundChoice()
@@ -1267,7 +1305,7 @@ do
     preview:SetPoint("LEFT", slider, "RIGHT", 17, 0)
     preview:SetSize(130, 28)
     preview:SetText("Probar archivo")
-    preview:SetScript("OnClick", A.traceCallback("UI.lua:1270:callback", function()
+    preview:SetScript("OnClick", A.traceCallback("UI.lua:1308:callback", function()
         stopPreview()
         local played
         played, handle = A.playCallSound()
@@ -1283,7 +1321,7 @@ do
     combat:SetPoint("TOPLEFT", alertHelp, "BOTTOMLEFT", -4, -12)
     local combatLabel = text(combat, "Ocultar ventanas de Tártaro durante el combate")
     combatLabel:SetPoint("LEFT", combat, "RIGHT", 4, 0)
-    combat:SetScript("OnClick", A.traceCallback("UI.lua:1286:callback", function(self)
+    combat:SetScript("OnClick", A.traceCallback("UI.lua:1324:callback", function(self)
         TartaroDB.hideWindowsInCombat = self:GetChecked() and true or false
         A.updateCombatWindows()
     end))
@@ -1292,18 +1330,18 @@ do
     reset:SetSize(220, 28)
     reset:SetText("Restablecer configuración")
     reset:SetStyle(false)
-    reset:SetScript("OnClick", A.traceCallback("UI.lua:1295:callback", function() StaticPopup_Show("TARTARO_RESET_OPTIONS") end))
-    local showVolume; showVolume = A.traceCallback("UI.lua:1296:showVolume", function(volume)
+    reset:SetScript("OnClick", A.traceCallback("UI.lua:1333:callback", function() StaticPopup_Show("TARTARO_RESET_OPTIONS") end))
+    local showVolume; showVolume = A.traceCallback("UI.lua:1334:showVolume", function(volume)
         value:SetText("Volumen del llamado · " .. (volume == 0 and "Silenciado" or volume .. "%"))
         preview:SetEnabled(volume ~= 0)
         preview:SetStyle(false, volume ~= 0)
     end)
-    slider:SetScript("OnValueChanged", A.traceCallback("UI.lua:1301:callback", function(_, volume)
+    slider:SetScript("OnValueChanged", A.traceCallback("UI.lua:1339:callback", function(_, volume)
         TartaroDB.callSoundVolume = volume
         showVolume(volume)
         stopPreview()
     end))
-    local syncOptions; syncOptions = A.traceCallback("UI.lua:1306:syncOptions", function()
+    local syncOptions; syncOptions = A.traceCallback("UI.lua:1344:syncOptions", function()
         local volume = callVolume()
         slider:SetValue(volume)
         showVolume(volume)
@@ -1317,7 +1355,7 @@ do
     optionsPanel:SetScript("OnShow", syncOptions)
 end
 
-local settings; settings = A.traceCallback("UI.lua:1320:settings", function()
+local settings; settings = A.traceCallback("UI.lua:1358:settings", function()
     line("Ajustes de mapa", accent)
     line("Ubicación", accent)
     line("Mapa y minimapa: aro de color de clase = hermandad fuera de tu grupo.")
@@ -1336,25 +1374,25 @@ local settings; settings = A.traceCallback("UI.lua:1320:settings", function()
     for _, call in pairs(A.calls) do
         if call.expires > GetServerTime() then
             line(call.name .. " · " .. A.callLocation(call), accent)
-            button("Ver llamado", A.traceCallback("UI.lua:1339:callback", function() A.showCall(call) end))
+            button("Ver llamado", A.traceCallback("UI.lua:1377:callback", function() A.showCall(call) end))
             if call.author == A.self then
                 local db, character = A.db, A.self
                 local names = {}
                 for id in pairs(A.callRequests) do
                     if A.members[id] then names[#names + 1] = {id=id, name=A.members[id].name} end
                 end
-                table.sort(names, A.traceCallback("UI.lua:1346:callback", function(left, right) return left.name < right.name end))
+                table.sort(names, A.traceCallback("UI.lua:1384:callback", function(left, right) return left.name < right.name end))
                 line("Pedidos de grupo · " .. #names, accent)
                 for _, entry in ipairs(names) do
                     local id = entry.id
-                    participantActions(id, entry.name, A.traceCallback("UI.lua:1350:callback", function()
+                    participantActions(id, entry.name, A.traceCallback("UI.lua:1388:callback", function()
                         if A.db ~= db or A.self ~= character or A.calls[character] ~= call or call.author ~= character
                             or call.expires <= GetServerTime() or not A.can(A.members[character], "call")
                             or not A.callRequests[id] then return end
                         return A.members[id]
                     end), canInviteMember)
                 end
-                button("Cerrar llamado", A.traceCallback("UI.lua:1357:callback", function() A.closeCall(call) end))
+                button("Cerrar llamado", A.traceCallback("UI.lua:1395:callback", function() A.closeCall(call) end))
             end
         end
     end
@@ -1362,8 +1400,10 @@ end)
 
 local memberColumns = {10, 164, 207, 367, 470, 570}
 local detectedFirst
+local memberPresence = {}
+local presenceLabels = {active="Activo", unconfirmed="Sin confirmar", historical="Histórico", undetected="Sin detectar"}
 
-local memberRow; memberRow = A.traceCallback("UI.lua:1366:memberRow", function(values, index, role, online, detected, class)
+local memberRow; memberRow = A.traceCallback("UI.lua:1406:memberRow", function(values, index, role, online, detected, class)
     local muted = {0.7, 0.65, 0.61}
     local green = {0.55, 0.82, 0.65}
     local classColor = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
@@ -1389,19 +1429,19 @@ local memberRow; memberRow = A.traceCallback("UI.lua:1366:memberRow", function(v
             local label = text(control, "Tártaro")
             label:SetPoint("LEFT")
             label:SetTextColor(unpack(accent))
-            control:SetScript("OnClick", A.traceCallback("UI.lua:1392:callback", function()
+            control:SetScript("OnClick", A.traceCallback("UI.lua:1432:callback", function()
                 detectedFirst = not detectedFirst
                 scroll:SetVerticalScroll(0)
                 A.refresh()
             end))
-            control:SetScript("OnEnter", A.traceCallback("UI.lua:1397:callback", function(self)
+            control:SetScript("OnEnter", A.traceCallback("UI.lua:1437:callback", function(self)
                 label:SetTextColor(1, 0.92, 0.80)
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetText(detectedFirst == true and "Mostrar primero a los miembros sin detectar"
-                    or "Mostrar primero a los miembros con Tártaro detectado")
+                GameTooltip:SetText(detectedFirst == true and "Mostrar primero a los miembros sin detección histórica"
+                    or "Mostrar primero a los miembros con detección histórica de Tártaro")
                 GameTooltip:Show()
             end))
-            control:SetScript("OnLeave", A.traceCallback("UI.lua:1404:callback", function()
+            control:SetScript("OnLeave", A.traceCallback("UI.lua:1444:callback", function()
                 label:SetTextColor(unpack(accent))
                 GameTooltip:Hide()
             end))
@@ -1416,23 +1456,51 @@ local memberRow; memberRow = A.traceCallback("UI.lua:1366:memberRow", function(v
     return frame
 end)
 
-local memberActions; memberActions = A.traceCallback("UI.lua:1419:memberActions", function(frame, id)
-    if id == A.self then return end
+local memberActions; memberActions = A.traceCallback("UI.lua:1459:memberActions", function(frame, id)
     if not frame.memberMenu then
         frame.memberMenu = components.Attach(frame,CreateFrame("Button", nil, frame))
         frame.memberMenu:SetAllPoints(frame)
         frame.memberMenu:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     end
     local db, character = A.db, A.self
-    local currentMember; currentMember = A.traceCallback("UI.lua:1427:currentMember", function()
+    local currentMember; currentMember = A.traceCallback("UI.lua:1466:currentMember", function()
         if A.db == db and A.self == character then return A.members[id] end
     end)
-    frame.memberMenu:SetScript("OnClick", A.traceCallback("UI.lua:1430:callback", function(owner)
+    frame.memberMenu:SetScript("OnEnter", A.traceCallback("UI.members.presenceTooltip", function(self)
         local member = currentMember()
         if not member then return end
-        MenuUtil.CreateContextMenu(owner, A.traceCallback("UI.lua:1433:callback", function(_, root)
+        local presence, lastSeen = A.addonPresence(member)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(member.name)
+        GameTooltip:AddLine("Tártaro: " .. presenceLabels[presence], 1, 0.82, 0)
+        if member.id == A.self then
+            GameTooltip:AddLine("Tártaro está cargado en este personaje.", 0.96, 0.9, 0.82, true)
+        elseif presence == "active" then
+            GameTooltip:AddLine("Se recibió un mensaje de Tártaro en los últimos 150 segundos de esta sesión.", 0.96, 0.9, 0.82, true)
+        elseif presence == "unconfirmed" then
+            GameTooltip:AddLine("Personaje conectado; sin confirmación reciente de Tártaro en esta sesión. No demuestra desinstalación.", 0.96, 0.9, 0.82, true)
+        elseif presence == "historical" then
+            GameTooltip:AddLine("Tártaro fue detectado anteriormente. Su actividad actual no está confirmada.", 0.96, 0.9, 0.82, true)
+        else
+            GameTooltip:AddLine("Este cliente todavía no ha registrado mensajes de Tártaro de este personaje.", 0.96, 0.9, 0.82, true)
+        end
+        if type(lastSeen) == "number" then
+            GameTooltip:AddLine((member.id == A.self and "Registro local: " or "Último mensaje recibido: ")
+                .. date("%d/%m/%Y %H:%M:%S", lastSeen) .. " (hora local)", 0.96, 0.9, 0.82, true)
+        end
+        GameTooltip:Show()
+    end))
+    frame.memberMenu:SetScript("OnLeave", A.traceCallback("UI.members.presenceTooltipLeave", function() GameTooltip:Hide() end))
+    frame.memberMenu:SetScript("OnHide", A.traceCallback("UI.members.presenceTooltipHide", function(self)
+        if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+    end))
+    frame.memberMenu:SetScript("OnClick", A.traceCallback("UI.lua:1497:callback", function(owner)
+        local member = currentMember()
+        if not member or id == character then return end
+        GameTooltip:Hide()
+        MenuUtil.CreateContextMenu(owner, A.traceCallback("UI.lua:1501:callback", function(_, root)
             root:CreateTitle(member.name)
-            local whisper = root:CreateButton("Susurrar", A.traceCallback("UI.lua:1435:callback", function()
+            local whisper = root:CreateButton("Susurrar", A.traceCallback("UI.lua:1503:callback", function()
                 local target = currentMember()
                 if target and target.online == true then openWhisperDraft(whisperTarget(target.name), "") end
             end))
@@ -1444,11 +1512,11 @@ local memberActions; memberActions = A.traceCallback("UI.lua:1419:memberActions"
     frame.memberMenu:Show()
 end)
 
-local members; members = A.traceCallback("UI.lua:1447:members", function()
+local members; members = A.traceCallback("UI.lua:1515:members", function()
     if detectedFirst ~= nil then A.debugLog("observation", "members.order", {detected=detectedFirst}) end
     local list = {}
     for _, member in pairs(A.members) do list[#list + 1] = member end
-    table.sort(list, A.traceCallback("UI.lua:1451:callback", function(left, right)
+    table.sort(list, A.traceCallback("UI.lua:1519:callback", function(left, right)
         if detectedFirst ~= nil then
             local leftDetected, rightDetected = A.hasUsedAddon(left), A.hasUsedAddon(right)
             if leftDetected ~= rightDetected then return leftDetected == detectedFirst end
@@ -1461,18 +1529,20 @@ local members; members = A.traceCallback("UI.lua:1447:members", function()
         or detectedFirst and "detectados primero; luego, conexión y nombre."
         or "sin detectar primero; luego, conexión y nombre."))
     line("Pulsá un miembro para susurrar o invitar. Invitar en grupo requiere liderazgo.")
-    line("La detección de Tártaro se guarda entre sesiones.")
+    line("Conexión informada por WoW. Tártaro: actividad reciente o detección histórica; pasá el mouse para ver el último registro.")
     memberRow({"Personaje", "Nivel", "Rol", "Conexión"}, 0)
     components.BeginTable()
+    memberPresence = {}
     for index, member in ipairs(list) do
         local role = A.db.roles[member.id]
-        local detected = A.hasUsedAddon(member)
+        local presence = A.addonPresence(member)
+        memberPresence[member.id] = presence
         local connection = member.online == true and "Conectado"
             or member.online == false and "Desconectado" or "Sin datos"
         local frame = memberRow({
             member.name, member.level and tostring(member.level) or "-", A.roleLabel(role, member.class),
-            connection, detected and "Detectado" or "Sin detectar",
-        }, index, role, member.online, detected, member.class)
+            connection, presenceLabels[presence],
+        }, index, role, member.online, presence == "active", member.class)
         memberActions(frame, member.id)
     end
     if #list == 0 then line("Esperando la lista de la hermandad.") end
@@ -1491,7 +1561,7 @@ recipeSearch:SetPoint("TOPLEFT", 6, -53)
 recipeSearch:SetSize(218, 26)
 recipeSearch:SetAutoFocus(false)
 recipeSearch:SetMaxLetters(90)
-recipeSearch:SetScript("OnEscapePressed", A.traceCallback("UI.lua:1494:callback", function(self) self:ClearFocus() end))
+recipeSearch:SetScript("OnEscapePressed", A.traceCallback("UI.lua:1564:callback", function(self) self:ClearFocus() end))
 local recipeLabel = text(professionControls, "Receta, objeto o fabricante")
 recipeLabel:SetPoint("TOPLEFT", 1, -34)
 local professionButtons = {}
@@ -1502,7 +1572,7 @@ for index, option in ipairs({{"recipes", "Buscar recetas"}, {"orders", "Pedidos"
     control:SetPoint("TOPLEFT", (index - 1) * 141, 0)
     control:SetSize(index == 3 and 282 or 133, 26)
     control:SetText(option[2])
-    control:SetScript("OnClick", A.traceCallback("UI.lua:1505:callback", function()
+    control:SetScript("OnClick", A.traceCallback("UI.lua:1575:callback", function()
         professionView = key
         recipeSearch:ClearFocus()
         scroll:SetVerticalScroll(0)
@@ -1510,22 +1580,22 @@ for index, option in ipairs({{"recipes", "Buscar recetas"}, {"orders", "Pedidos"
     end))
     professionButtons[key] = control
 end
-recipeSearch:SetScript("OnTextChanged", A.traceCallback("UI.lua:1513:callback", function()
+recipeSearch:SetScript("OnTextChanged", A.traceCallback("UI.lua:1583:callback", function()
     recipePage, selectedRecipe = 1, nil
     scroll:SetVerticalScroll(0)
     A.invalidate("recipes")
 end))
 
-local whisperRecipe; whisperRecipe = A.traceCallback("UI.lua:1519:whisperRecipe", function(member, recipe)
+local whisperRecipe; whisperRecipe = A.traceCallback("UI.lua:1589:whisperRecipe", function(member, recipe)
     openWhisperDraft(whisperTarget(member.name), "Hola, ¿me podrías fabricar " .. recipe .. "?")
 end)
 
-local sendGroupWhisper; sendGroupWhisper = A.traceCallback("UI.lua:1523:sendGroupWhisper", function(name, draft)
+local sendGroupWhisper; sendGroupWhisper = A.traceCallback("UI.lua:1593:sendGroupWhisper", function(name, draft)
     local target = whisperTarget(name)
     local send = C_ChatInfo and C_ChatInfo.SendChatMessage or SendChatMessage
     local blocked = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown()
     if send and not blocked then
-        local ok, result = A.debugPcall("UI.lua:1528:pcall", send, draft, "WHISPER", nil, target)
+        local ok, result = A.debugPcall("UI.lua:1598:pcall", send, draft, "WHISPER", nil, target)
         if ok and result ~= false then return "Solicitud enviada" end
     end
     if openWhisperDraft(target, draft) then return "Borrador en el chat" end
@@ -1546,7 +1616,7 @@ do
         box:SetSize(366, 23)
         box:SetAutoFocus(false)
         box:SetMaxLetters(55)
-        box:SetScript("OnEscapePressed", A.traceCallback("UI.lua:1549:callback", function() form:Hide() end))
+        box:SetScript("OnEscapePressed", A.traceCallback("UI.lua:1619:callback", function() form:Hide() end))
         inputs[i] = {caption, box}
     end
     local materials = CreateFrame("CheckButton", nil, form, "UICheckButtonTemplate")
@@ -1597,7 +1667,7 @@ do
     description:SetSize(366, 25)
     description:SetAutoFocus(false)
     description:SetMaxLetters(55)
-    description:SetScript("OnEscapePressed", A.traceCallback("UI.lua:1600:callback", function() form:Hide() end))
+    description:SetScript("OnEscapePressed", A.traceCallback("UI.lua:1670:callback", function() form:Hide() end))
     local destinationStatus = text(groupControls, "")
     destinationStatus:SetPoint("TOPLEFT", 16, -165)
     destinationStatus:SetWidth(376)
@@ -1613,11 +1683,11 @@ do
         input:SetAutoFocus(false)
         input:SetNumeric(true)
         input:SetMaxLetters(2)
-        input:SetScript("OnEscapePressed", A.traceCallback("UI.lua:1616:callback", function() form:Hide() end))
+        input:SetScript("OnEscapePressed", A.traceCallback("UI.lua:1686:callback", function() form:Hide() end))
         needsFields[index] = input
     end
     local selectedCategory, selectedDestination
-    local syncGroupControls; syncGroupControls = A.traceCallback("UI.lua:1620:syncGroupControls", function()
+    local syncGroupControls; syncGroupControls = A.traceCallback("UI.lua:1690:syncGroupControls", function()
         local category = A.groupCategory(selectedCategory)
         local other = selectedCategory == "OTHER"
         categoryButton:SetText(category.label)
@@ -1641,12 +1711,12 @@ do
                 or "El cliente no ofrece destinos ahora. Abrí el buscador del juego y volvé a intentar.")
             or "Destinos disponibles según el cliente.")
     end)
-    categoryButton:SetScript("OnClick", A.traceCallback("UI.lua:1644:callback", function(owner)
-        MenuUtil.CreateContextMenu(owner, A.traceCallback("UI.lua:1645:callback", function(_, root)
+    categoryButton:SetScript("OnClick", A.traceCallback("UI.lua:1714:callback", function(owner)
+        MenuUtil.CreateContextMenu(owner, A.traceCallback("UI.lua:1715:callback", function(_, root)
             root:CreateTitle("Tipo de actividad")
             for _, category in ipairs(A.groupCategories) do
                 local key = category.key
-                root:CreateRadio(category.label, A.traceCallback("UI.lua:1649:callback", function() return selectedCategory == key end), A.traceCallback("UI.lua:1649:callback", function()
+                root:CreateRadio(category.label, A.traceCallback("UI.lua:1719:callback", function() return selectedCategory == key end), A.traceCallback("UI.lua:1719:callback", function()
                     if selectedCategory ~= key then
                         selectedCategory, selectedDestination = key, nil
                         description:SetText("")
@@ -1656,16 +1726,16 @@ do
             end
         end))
     end))
-    destinationButton:SetScript("OnClick", A.traceCallback("UI.lua:1659:callback", function(owner)
+    destinationButton:SetScript("OnClick", A.traceCallback("UI.lua:1729:callback", function(owner)
         syncGroupControls()
         local list = A.groupDestinations(selectedCategory)
-        MenuUtil.CreateContextMenu(owner, A.traceCallback("UI.lua:1662:callback", function(_, root)
+        MenuUtil.CreateContextMenu(owner, A.traceCallback("UI.lua:1732:callback", function(_, root)
             root:CreateTitle(A.groupCategory(selectedCategory).label)
             if root.SetScrollMode then root:SetScrollMode(260) end
             if #list == 0 then root:CreateTitle("Sin destinos disponibles") end
             for _, entry in ipairs(list) do
                 local id = entry.id
-                root:CreateRadio(entry.name, A.traceCallback("UI.lua:1668:callback", function() return selectedDestination == id end), A.traceCallback("UI.lua:1668:callback", function()
+                root:CreateRadio(entry.name, A.traceCallback("UI.lua:1738:callback", function() return selectedDestination == id end), A.traceCallback("UI.lua:1738:callback", function()
                     selectedDestination = id
                     syncGroupControls()
                 end))
@@ -1673,7 +1743,7 @@ do
         end))
     end))
     local recipe, guild, editingGroup
-    local updateReagents; updateReagents = A.traceCallback("UI.lua:1676:updateReagents", function()
+    local updateReagents; updateReagents = A.traceCallback("UI.lua:1746:updateReagents", function()
         if not recipe or A.db ~= guild or not form:IsShown() then return end
         local quantity = tonumber(inputs[1][2]:GetText())
         local list = A.recipeMaterials(recipe.spell)
@@ -1697,7 +1767,7 @@ do
     form.updateReagents = updateReagents
     inputs[1][2]:SetScript("OnTextChanged", updateReagents)
     form:SetScript("OnShow", updateReagents)
-    local openForm; openForm = A.traceCallback("UI.lua:1700:openForm", function(selected, group)
+    local openForm; openForm = A.traceCallback("UI.lua:1770:openForm", function(selected, group)
         if not A.db then return end
         recipe, guild, editingGroup = selected, A.db, group
         title:SetText(recipe and ("Pedir " .. (recipe.object or recipe.name)) or "Estoy armando grupo")
@@ -1742,10 +1812,10 @@ do
         updateReagents()
         form:Raise()
     end)
-    A.openOrderForm = A.traceCallback("UI.lua:1745:A.openOrderForm", function(recipe) openForm(recipe) end)
-    A.openGroupForm = A.traceCallback("UI.lua:1746:A.openGroupForm", function() openForm() end)
-    A.editGroupForm = A.traceCallback("UI.lua:1747:A.editGroupForm", function(group) openForm(nil, group) end)
-    publish:SetScript("OnClick", A.traceCallback("UI.lua:1748:callback", function()
+    A.openOrderForm = A.traceCallback("UI.lua:1815:A.openOrderForm", function(recipe) openForm(recipe) end)
+    A.openGroupForm = A.traceCallback("UI.lua:1816:A.openGroupForm", function() openForm() end)
+    A.editGroupForm = A.traceCallback("UI.lua:1817:A.editGroupForm", function(group) openForm(nil, group) end)
+    publish:SetScript("OnClick", A.traceCallback("UI.lua:1818:callback", function()
         if A.db ~= guild then form:Hide(); return end
         local ok, err
         if recipe then
@@ -1764,7 +1834,7 @@ do
         form:Hide()
         A.refresh()
     end))
-    form:SetScript("OnHide", A.traceCallback("UI.lua:1767:callback", function()
+    form:SetScript("OnHide", A.traceCallback("UI.lua:1837:callback", function()
         for _, input in ipairs(inputs) do input[2]:ClearFocus() end
         description:ClearFocus()
         for _, input in ipairs(needsFields) do input:ClearFocus() end
@@ -1800,18 +1870,18 @@ do
     publish:SetSize(190, 28)
     publish:SetPoint("BOTTOMRIGHT", -16, 15)
     local guild, selectedItem
-    local identify; identify = A.traceCallback("UI.lua:1803:identify", function()
+    local identify; identify = A.traceCallback("UI.lua:1873:identify", function()
         if not selectedItem then return end
         link:SetText(A.professionItem(selectedItem) or ("Material " .. selectedItem))
         local valid, err = A.donationMaterial(selectedItem)
         status:SetText(valid and ((A.professionItem(selectedItem) or "Material") .. " · Vence en 7 días.") or err)
     end)
-    quantity:SetScript("OnEscapePressed", A.traceCallback("UI.lua:1809:callback", function() form:Hide() end))
-    form:SetScript("OnHide", A.traceCallback("UI.lua:1810:callback", function()
+    quantity:SetScript("OnEscapePressed", A.traceCallback("UI.lua:1879:callback", function() form:Hide() end))
+    form:SetScript("OnHide", A.traceCallback("UI.lua:1880:callback", function()
         quantity:ClearFocus()
         if not form.resumeAfterCombat and guild and A.db == guild then win:Show(); A.refresh() end
     end))
-    A.openDonationForm = A.traceCallback("UI.lua:1814:A.openDonationForm", function(item)
+    A.openDonationForm = A.traceCallback("UI.lua:1884:A.openDonationForm", function(item)
         if not A.db or combatWindowsBlocked() or type(item) ~= "number" or item <= 0 or item % 1 ~= 0 then return end
         guild = A.db
         editor:Hide()
@@ -1824,12 +1894,12 @@ do
         form:Raise()
         A.debugLog("observation", "donation.open", {item=item, shown=form:IsShown(), quantity=tonumber(quantity:GetText())})
     end)
-    A.closeDonationForm = A.traceCallback("UI.lua:1827:A.closeDonationForm", function()
+    A.closeDonationForm = A.traceCallback("UI.lua:1897:A.closeDonationForm", function()
         form.resumeAfterCombat = nil
         guild, selectedItem = nil, nil
         form:Hide()
     end)
-    A.updateDonationCombat = A.traceCallback("UI.lua:1832:A.updateDonationCombat", function(blocked)
+    A.updateDonationCombat = A.traceCallback("UI.lua:1902:A.updateDonationCombat", function(blocked)
         if blocked then
             if form:IsShown() then form.resumeAfterCombat = true; form:Hide() end
         elseif form.resumeAfterCombat then
@@ -1837,7 +1907,7 @@ do
             if A.db and A.db == guild then form:Show() end
         end
     end)
-    publish:SetScript("OnClick", A.traceCallback("UI.lua:1840:callback", function()
+    publish:SetScript("OnClick", A.traceCallback("UI.lua:1910:callback", function()
         if not guild or A.db ~= guild then A.closeDonationForm(); return end
         local request, err = A.createDonation(selectedItem, quantity:GetText())
         if not request then status:SetText(err); return end
@@ -1848,7 +1918,7 @@ do
     end))
     local events = CreateFrame("Frame")
     events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
-    events:SetScript("OnEvent", A.traceCallback("UI.lua:1851:callback", function()
+    events:SetScript("OnEvent", A.traceCallback("UI.lua:1921:callback", function()
         if form:IsShown() and A.db == guild then identify() end
         if A.db then A.invalidate("donations") end
     end))
@@ -1860,13 +1930,13 @@ callPopup:SetBackdropColor(0.095, 0.075, 0.078, 1)
 callPopup:ClearAllPoints()
 callPopup:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -34, -112)
 local callMoved
-callPopup:HookScript("OnDragStop", A.traceCallback("UI.lua:1863:callback", function() callMoved = true end))
+callPopup:HookScript("OnDragStop", A.traceCallback("UI.lua:1933:callback", function() callMoved = true end))
 
-local positionCall; positionCall = A.traceCallback("UI.lua:1865:positionCall", function()
+local positionCall; positionCall = A.traceCallback("UI.lua:1935:positionCall", function()
     if not callMoved then positionNotice(callPopup, 34, 112, true) end
 end)
 
-win:HookScript("OnDragStop", A.traceCallback("UI.lua:1869:callback", function()
+win:HookScript("OnDragStop", A.traceCallback("UI.lua:1939:callback", function()
     if callPopup:IsShown() then positionCall() end
 end))
 local callHeading = text(callPopup, "Llamado a las armas", "GameFontNormalLarge")
@@ -1884,24 +1954,24 @@ requestGroup:SetSize(166, 27)
 requestGroup:SetPoint("BOTTOMRIGHT", -16, 13)
 local visibleCall
 
-local currentCall; currentCall = A.traceCallback("UI.lua:1887:currentCall", function()
+local currentCall; currentCall = A.traceCallback("UI.lua:1957:currentCall", function()
     if not visibleCall or A.calls[visibleCall.author] ~= visibleCall or visibleCall.expires <= GetServerTime() then return end
     if not A.can(A.members[visibleCall.author], "call") then return end
     return visibleCall
 end)
 
-local updateRequestButton; updateRequestButton = A.traceCallback("UI.lua:1893:updateRequestButton", function(call)
+local updateRequestButton; updateRequestButton = A.traceCallback("UI.lua:1963:updateRequestButton", function(call)
     local own = call.author == A.self
     requestGroup:SetText(own and "Cerrar llamado" or call.requestState or "Pedir grupo")
     requestGroup:SetEnabled(own or not call.requestState)
     requestGroup:SetStyle(false, own or not call.requestState)
 end)
 
-local callMessage; callMessage = A.traceCallback("UI.lua:1900:callMessage", function(call, separator)
+local callMessage; callMessage = A.traceCallback("UI.lua:1970:callMessage", function(call, separator)
     return call.name .. " pide refuerzos para PvP de mundo." .. separator .. A.callLocation(call)
 end)
 
-A.showCall = A.traceCallback("UI.lua:1904:A.showCall", function(call)
+A.showCall = A.traceCallback("UI.lua:1974:A.showCall", function(call)
     if IsInInstance() then return end
     visibleCall = call
     if not currentCall() or combatWindowsBlocked() then return end
@@ -1916,7 +1986,7 @@ end)
 local callZone = CreateFrame("Frame")
 callZone:RegisterEvent("PLAYER_ENTERING_WORLD")
 callZone:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-callZone:SetScript("OnEvent", A.traceCallback("UI.lua:1919:callback", function()
+callZone:SetScript("OnEvent", A.traceCallback("UI.lua:1989:callback", function()
     if IsInInstance() then
         visibleCall = nil
         callPopup:Hide()
@@ -1924,12 +1994,12 @@ callZone:SetScript("OnEvent", A.traceCallback("UI.lua:1919:callback", function()
     end
 end))
 
-callMap:SetScript("OnClick", A.traceCallback("UI.lua:1927:callback", function()
+callMap:SetScript("OnClick", A.traceCallback("UI.lua:1997:callback", function()
     local call = currentCall()
     if call then A.openCallMap(call) end
 end))
 
-requestGroup:SetScript("OnClick", A.traceCallback("UI.lua:1932:callback", function()
+requestGroup:SetScript("OnClick", A.traceCallback("UI.lua:2002:callback", function()
     local call = currentCall()
     if not call then return end
     if call.author == A.self then A.closeCall(call); return end
@@ -1941,7 +2011,7 @@ requestGroup:SetScript("OnClick", A.traceCallback("UI.lua:1932:callback", functi
     updateRequestButton(call)
 end))
 
-C_Timer.NewTicker(1, A.traceCallback("UI.lua:1944:callback", function()
+C_Timer.NewTicker(1, A.traceCallback("UI.lua:2014:callback", function()
     if callPopup:IsShown() and not currentCall() then callPopup:Hide() end
 end))
 
@@ -1952,7 +2022,7 @@ StaticPopupDialogs["TARTARO_CONFIRM_CALL"] = {
     button2 = "Cancelar",
     timeout = 0,
     hideOnEscape = true,
-    OnAccept = A.traceCallback("UI.lua:1955:callback", function(_, data)
+    OnAccept = A.traceCallback("UI.lua:2025:callback", function(_, data)
         if A.db ~= data.db then return end
         local success, err = A.sendCall(data.position)
         if not success then print("Tártaro: " .. err); return end
@@ -1963,7 +2033,7 @@ StaticPopupDialogs["TARTARO_CONFIRM_CALL"] = {
     end),
 }
 
-A.confirmCall = A.traceCallback("UI.lua:1966:A.confirmCall", function()
+A.confirmCall = A.traceCallback("UI.lua:2036:A.confirmCall", function()
     local position, err = A.prepareCall()
     if not position then print("Tártaro: " .. err); return end
     StaticPopup_Show("TARTARO_CONFIRM_CALL", A.callLocation(position), nil, {db = A.db, position = position})
@@ -1994,7 +2064,7 @@ do
     rim:SetBackdropBorderColor(0.85, 0.66, 0.34, 1)
     rim:EnableMouse(false)
 end
-callLauncher.ResetPosition = A.traceCallback("UI.lua:1996:callLauncher:ResetPosition", function(self)
+callLauncher.ResetPosition = A.traceCallback("UI.lua:2067:callLauncher:ResetPosition", function(self)
     self:ClearAllPoints()
     if Minimap:IsVisible() then
         self:SetPoint("TOP", Minimap, "BOTTOM", 0, -9)
@@ -2012,7 +2082,7 @@ callLauncher:Hide()
 
 do
     local dragged, moving
-    local place; place = A.traceCallback("UI.lua:2010:place", function(x, y)
+    local place; place = A.traceCallback("UI.lua:2085:place", function(x, y)
         local scale = UIParent:GetEffectiveScale() / callLauncher:GetEffectiveScale()
         callLauncher:ClearAllPoints()
         callLauncher:SetPoint("CENTER", UIParent, "BOTTOMLEFT",
@@ -2032,7 +2102,7 @@ do
         return percent
     end)
 
-    local stopDrag; stopDrag = A.traceCallback("UI.lua:2030:stopDrag", function(self)
+    local stopDrag; stopDrag = A.traceCallback("UI.lua:2105:stopDrag", function(self)
         if not moving then return end
         moving = false
         self:StopMovingOrSizing()
@@ -2049,28 +2119,28 @@ do
 
     callLauncher:RegisterEvent("PLAYER_LOGIN")
     callLauncher:RegisterEvent("PLAYER_ENTERING_WORLD")
-    callLauncher:SetScript("OnEvent", A.traceCallback("UI.lua:2046:callback", function()
+    callLauncher:SetScript("OnEvent", A.traceCallback("UI.lua:2122:callback", function()
         A.setCallLauncherSize(A.callLauncherSize())
         callLauncher:SetShown(A.can(A.me, "call"))
     end))
-    callLauncher:SetScript("OnMouseDown", A.traceCallback("UI.lua:2049:callback", function() dragged = false end))
-    callLauncher:SetScript("OnDragStart", A.traceCallback("UI.lua:2050:callback", function(self)
+    callLauncher:SetScript("OnMouseDown", A.traceCallback("UI.lua:2126:callback", function() dragged = false end))
+    callLauncher:SetScript("OnDragStart", A.traceCallback("UI.lua:2127:callback", function(self)
         dragged, moving = true, true
         self:StartMoving()
     end))
     callLauncher:SetScript("OnDragStop", stopDrag)
     callLauncher:SetScript("OnHide", stopDrag)
-    callLauncher:SetScript("OnClick", A.traceCallback("UI.lua:2056:callback", function()
+    callLauncher:SetScript("OnClick", A.traceCallback("UI.lua:2133:callback", function()
         if not dragged then A.confirmCall() end
     end))
 end
 
-local memberOrder; memberOrder = A.traceCallback("UI.lua:2061:memberOrder", function(left, right)
+local memberOrder; memberOrder = A.traceCallback("UI.lua:2138:memberOrder", function(left, right)
     if (left.online == true) ~= (right.online == true) then return left.online == true end
     return left.name < right.name
 end)
 
-local professionMembers; professionMembers = A.traceCallback("UI.lua:2066:professionMembers", function()
+local professionMembers; professionMembers = A.traceCallback("UI.lua:2143:professionMembers", function()
     local members = {}
     for id, profile in pairs(A.db.professions) do
         local member = A.members[id]
@@ -2080,11 +2150,11 @@ local professionMembers; professionMembers = A.traceCallback("UI.lua:2066:profes
     return members
 end)
 
-local level; level = A.traceCallback("UI.lua:2076:level", function(profession)
+local level; level = A.traceCallback("UI.lua:2153:level", function(profession)
     return profession.rank .. "/" .. profession.maximum
 end)
 
-local connection; connection = A.traceCallback("UI.lua:2080:connection", function(member)
+local connection; connection = A.traceCallback("UI.lua:2157:connection", function(member)
     if member.id == A.self or member.online == true then return "En línea" end
     return member.online == false and "Desconectado" or "Estado desconocido"
 end)
@@ -2093,13 +2163,13 @@ local rarityNames = {
     [0] = "Pobre", [1] = "Común", [2] = "Poco común", [3] = "Raro", [4] = "Épico", [5] = "Legendario",
 }
 local filters = {}
-local refreshFilters; refreshFilters = A.traceCallback("UI.lua:2089:refreshFilters", function()
+local refreshFilters; refreshFilters = A.traceCallback("UI.lua:2166:refreshFilters", function()
     recipePage, selectedRecipe = 1, nil
     scroll:SetVerticalScroll(0)
     A.refresh()
 end)
 
-local addRecipeFilter; addRecipeFilter = A.traceCallback("UI.lua:2095:addRecipeFilter", function(x, width, label, callback)
+local addRecipeFilter; addRecipeFilter = A.traceCallback("UI.lua:2172:addRecipeFilter", function(x, width, label, callback)
     local control = copperButton(professionControls)
     control:SetPoint("TOPLEFT", x, -53)
     control:SetSize(width, 26)
@@ -2112,17 +2182,17 @@ local addRecipeFilter; addRecipeFilter = A.traceCallback("UI.lua:2095:addRecipeF
     return control
 end)
 
-local filterMenu; filterMenu = A.traceCallback("UI.lua:2108:filterMenu", function(owner, title, options, field)
-    MenuUtil.CreateContextMenu(owner, A.traceCallback("UI.lua:2109:callback", function(_, root)
+local filterMenu; filterMenu = A.traceCallback("UI.lua:2185:filterMenu", function(owner, title, options, field)
+    MenuUtil.CreateContextMenu(owner, A.traceCallback("UI.lua:2186:callback", function(_, root)
         root:CreateTitle(title)
         if root.SetScrollMode and #options > 9 then root:SetScrollMode(240) end
-        root:CreateRadio(options.all, A.traceCallback("UI.lua:2112:callback", function() return recipeFilters[field] == nil end), A.traceCallback("UI.lua:2112:callback", function()
+        root:CreateRadio(options.all, A.traceCallback("UI.lua:2189:callback", function() return recipeFilters[field] == nil end), A.traceCallback("UI.lua:2189:callback", function()
             recipeFilters[field], recipeFilters[field .. "Label"] = nil, nil
             refreshFilters()
         end))
         for _, option in ipairs(options) do
             local value, label = option[1], option[2]
-            root:CreateRadio(label, A.traceCallback("UI.lua:2118:callback", function() return recipeFilters[field] == value end), A.traceCallback("UI.lua:2118:callback", function()
+            root:CreateRadio(label, A.traceCallback("UI.lua:2195:callback", function() return recipeFilters[field] == value end), A.traceCallback("UI.lua:2195:callback", function()
                 recipeFilters[field], recipeFilters[field .. "Label"] = value, label
                 refreshFilters()
             end))
@@ -2130,12 +2200,12 @@ local filterMenu; filterMenu = A.traceCallback("UI.lua:2108:filterMenu", functio
     end))
 end)
 
-local memberFilter = addRecipeFilter(235, 117, "Todos los miembros", A.traceCallback("UI.lua:2126:callback", function(self)
+local memberFilter = addRecipeFilter(235, 117, "Todos los miembros", A.traceCallback("UI.lua:2203:callback", function(self)
     local options = {all = "Todos los miembros", {"online", "En línea"}, {"offline", "Desconectados"}}
     for _, member in ipairs(professionMembers()) do options[#options + 1] = {member.id, member.name} end
     filterMenu(self, "Fabricantes", options, "member")
 end))
-local professionFilter = addRecipeFilter(362, 168, "Todas las profesiones", A.traceCallback("UI.lua:2131:callback", function(self)
+local professionFilter = addRecipeFilter(362, 168, "Todas las profesiones", A.traceCallback("UI.lua:2208:callback", function(self)
     local options, names = {all = "Todas las profesiones"}, {}
     for _, member in ipairs(professionMembers()) do
         for id, prof in pairs(A.db.professions[member.id].list) do
@@ -2143,19 +2213,19 @@ local professionFilter = addRecipeFilter(362, 168, "Todas las profesiones", A.tr
         end
     end
     for id, name in pairs(names) do options[#options + 1] = {id, name} end
-    table.sort(options, A.traceCallback("UI.lua:2139:callback", function(left, right) return left[2] < right[2] end))
+    table.sort(options, A.traceCallback("UI.lua:2216:callback", function(left, right) return left[2] < right[2] end))
     filterMenu(self, "Profesión", options, "profession")
 end))
-local rarityFilter = addRecipeFilter(540, 130, "Todas las rarezas", A.traceCallback("UI.lua:2142:callback", function(self)
+local rarityFilter = addRecipeFilter(540, 130, "Todas las rarezas", A.traceCallback("UI.lua:2219:callback", function(self)
     local options = {all = "Todas las rarezas"}
     for rarity = 0, 5 do options[#options + 1] = {rarity, rarityNames[rarity]} end
     filterMenu(self, "Rareza", options, "rarity")
 end))
-local boundFilter = addRecipeFilter(680, 86, "Ocultar BoP", A.traceCallback("UI.lua:2147:callback", function()
+local boundFilter = addRecipeFilter(680, 86, "Ocultar BoP", A.traceCallback("UI.lua:2224:callback", function()
     recipeFilters.hideBound = not recipeFilters.hideBound
     refreshFilters()
 end))
-addRecipeFilter(776, 68, "Limpiar", A.traceCallback("UI.lua:2151:callback", function()
+addRecipeFilter(776, 68, "Limpiar", A.traceCallback("UI.lua:2228:callback", function()
     recipeFilters = {hideBound = false}
     recipeSearch:SetText("")
     refreshFilters()
@@ -2176,25 +2246,25 @@ listDivider:SetWidth(1)
 listDivider:SetColorTexture(0.35, 0.24, 0.20, 1)
 local recipeRows, pages = {}, 0
 
-local changePage; changePage = A.traceCallback("UI.lua:2172:changePage", function(delta)
+local changePage; changePage = A.traceCallback("UI.lua:2249:changePage", function(delta)
     recipePage = math.max(1, math.min(pages, recipePage + delta))
     selectedRecipe = nil
     scroll:SetVerticalScroll(0)
     A.refresh()
 end)
 
-local pageButton; pageButton = A.traceCallback("UI.lua:2179:pageButton", function(label, offset, delta)
+local pageButton; pageButton = A.traceCallback("UI.lua:2256:pageButton", function(label, offset, delta)
     local control = copperButton(recipeList)
     control:SetSize(34, 24)
     control:SetPoint("BOTTOMRIGHT", offset, 2)
     control:SetText(label)
     control:SetStyle(false)
-    control:SetScript("OnClick", A.traceCallback("UI.lua:2185:callback", function() changePage(delta) end))
+    control:SetScript("OnClick", A.traceCallback("UI.lua:2262:callback", function() changePage(delta) end))
     return control
 end)
 local previousPage, nextPage = pageButton("<", -55, -1), pageButton(">", -14, 1)
 
-local itemHover; itemHover = A.traceCallback("UI.lua:2190:itemHover", function(frame, item)
+local itemHover; itemHover = A.traceCallback("UI.lua:2267:itemHover", function(frame, item)
     if not item or item == 0 then return end
     GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
     GameTooltip:SetHyperlink("item:" .. item)
@@ -2202,7 +2272,7 @@ local itemHover; itemHover = A.traceCallback("UI.lua:2190:itemHover", function(f
     A.debugLog("tooltip.item", "UI.itemHover", item, GameTooltip:IsShown())
 end)
 
-local recipeRow; recipeRow = A.traceCallback("UI.lua:2198:recipeRow", function(index, result)
+local recipeRow; recipeRow = A.traceCallback("UI.lua:2275:recipeRow", function(index, result)
     local control = recipeRows[index]
     if not control then
         control = copperButton(recipeList)
@@ -2227,8 +2297,8 @@ local recipeRow; recipeRow = A.traceCallback("UI.lua:2198:recipeRow", function(i
         control.online:SetPoint("BOTTOMRIGHT", -8, 5)
         control.summary:SetMaxLines(1)
         control:SetText(" ")
-        control:SetScript("OnEnter", A.traceCallback("UI.lua:2223:callback", function(self) itemHover(self, self.item) end))
-        control:SetScript("OnLeave", A.traceCallback("UI.lua:2224:callback", function() GameTooltip:Hide() end))
+        control:SetScript("OnEnter", A.traceCallback("UI.lua:2300:callback", function(self) itemHover(self, self.item) end))
+        control:SetScript("OnLeave", A.traceCallback("UI.lua:2301:callback", function() GameTooltip:Hide() end))
         recipeRows[index] = control
     end
     control.recipeSpell = result.spell
@@ -2241,7 +2311,7 @@ local recipeRow; recipeRow = A.traceCallback("UI.lua:2198:recipeRow", function(i
     control.online:SetText(result.online > 0 and (result.online .. " en línea") or "Desconectados")
     if result.online > 0 then control.online:SetTextColor(0.46, 0.77, 0.53) else control.online:SetTextColor(0.72, 0.68, 0.65) end
     control.item = result.item
-    control:SetScript("OnClick", A.traceCallback("UI.lua:2237:callback", function()
+    control:SetScript("OnClick", A.traceCallback("UI.lua:2314:callback", function()
         selectedRecipe = result.spell
         scroll:SetVerticalScroll(0)
         A.refresh("recipeDetail")
@@ -2249,14 +2319,14 @@ local recipeRow; recipeRow = A.traceCallback("UI.lua:2198:recipeRow", function(i
     control:Show()
 end)
 
-local updatePage; updatePage = A.traceCallback("UI.lua:2245:updatePage", function(first, last, count)
+local updatePage; updatePage = A.traceCallback("UI.lua:2322:updatePage", function(first, last, count)
     for index = last - first + 2, #recipeRows do recipeRows[index]:Hide() end
     pageLabel:SetText(count > 0 and (first .. "-" .. last .. " de " .. count .. " recetas") or "Sin recetas")
     previousPage:SetEnabled(recipePage > 1 and count > 0)
     nextPage:SetEnabled(recipePage < pages and count > 0)
 end)
 
-local recipeDetail; recipeDetail = A.traceCallback("UI.lua:2252:recipeDetail", function(title, subtitle, texture, item, action, color, actionLabel)
+local recipeDetail; recipeDetail = A.traceCallback("UI.lua:2329:recipeDetail", function(title, subtitle, texture, item, action, color, actionLabel)
     local frame = row()
     if not frame.detail then
         local detail = CreateFrame("Frame", nil, frame)
@@ -2276,8 +2346,8 @@ local recipeDetail; recipeDetail = A.traceCallback("UI.lua:2252:recipeDetail", f
         detail.action:SetSize(88, 23)
         detail.action:SetText("Susurrar")
         detail.action:SetStyle(false)
-        detail:SetScript("OnEnter", A.traceCallback("UI.lua:2272:callback", function(self) itemHover(self, self.item) end))
-        detail:SetScript("OnLeave", A.traceCallback("UI.lua:2273:callback", function() GameTooltip:Hide() end))
+        detail:SetScript("OnEnter", A.traceCallback("UI.lua:2349:callback", function(self) itemHover(self, self.item) end))
+        detail:SetScript("OnLeave", A.traceCallback("UI.lua:2350:callback", function() GameTooltip:Hide() end))
         frame.detail = components.Attach(frame,detail)
     end
     local detail = frame.detail
@@ -2301,10 +2371,10 @@ local recipeDetail; recipeDetail = A.traceCallback("UI.lua:2252:recipeDetail", f
     layout.y = layout.y + 31
 end)
 
-local renderRecipeDetails; renderRecipeDetails = A.traceCallback("UI.lua:2297:renderRecipeDetails", function(selected)
+local renderRecipeDetails; renderRecipeDetails = A.traceCallback("UI.lua:2374:renderRecipeDetails", function(selected)
     recipeDetail(selected.object or selected.name, "", selected.icon, selected.item, nil, accent)
     line(selected.profession)
-    button("Lo necesito fabricar", A.traceCallback("UI.lua:2300:callback", function() A.openOrderForm(selected) end), true)
+    button("Lo necesito fabricar", A.traceCallback("UI.lua:2377:callback", function() A.openOrderForm(selected) end), true)
     line("Materiales · En bolsas / necesarios", accent)
     local materials = A.recipeMaterials(selected.spell)
     if not materials then
@@ -2319,14 +2389,14 @@ local renderRecipeDetails; renderRecipeDetails = A.traceCallback("UI.lua:2297:re
             local name, _, texture = A.professionItem(item)
             local material = item
             recipeDetail(name or ("Objeto " .. item), A.professionItemCount(item) .. "/" .. materials[item], texture, item,
-                A.traceCallback("UI.lua:2315:callback", function() A.openDonationForm(material) end), nil, "Solicitar")
+                A.traceCallback("UI.lua:2392:callback", function() A.openDonationForm(material) end), nil, "Solicitar")
         end
     end
     line("Fabricantes · " .. #selected.crafters, accent)
     for _, crafter in ipairs(selected.crafters) do
         local member, profession = crafter.member, crafter.profession
         local action
-        if member.id ~= A.self then action = A.traceCallback("UI.lua:2322:callback", function() whisperRecipe(member, selected.object or selected.name) end) end
+        if member.id ~= A.self then action = A.traceCallback("UI.lua:2399:callback", function() whisperRecipe(member, selected.object or selected.name) end) end
         local class = member.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[member.class]
         local color = class and {class.r, class.g, class.b}
         recipeDetail(member.name, connection(member) .. " · " .. level(profession), nil, nil, action, color)
@@ -2334,7 +2404,7 @@ local renderRecipeDetails; renderRecipeDetails = A.traceCallback("UI.lua:2297:re
 end)
 
 local lastDrawnRecipes
-local recipeResults; recipeResults = A.traceCallback("UI.lua:2330:recipeResults", function(onlyDetail)
+local recipeResults; recipeResults = A.traceCallback("UI.lua:2407:recipeResults", function(onlyDetail)
     local results, bySpell = A.searchRecipes(recipeSearch:GetText(), recipeFilters)
     A.debugLog("observation", "recipes.results", {count=#results, query=recipeSearch:GetText(), queryBytes=#recipeSearch:GetText(),
         member=recipeFilters.member, profession=recipeFilters.profession, rarity=recipeFilters.rarity})
@@ -2370,7 +2440,7 @@ local recipeResults; recipeResults = A.traceCallback("UI.lua:2330:recipeResults"
     renderRecipeDetails(selected)
 end)
 
-local renderOrder; renderOrder = A.traceCallback("UI.lua:2366:renderOrder", function(order)
+local renderOrder; renderOrder = A.traceCallback("UI.lua:2443:renderOrder", function(order)
     local owner = A.members[order.owner]
     local own = order.owner == A.self
     local title = ("%d × %s"):format(order.quantity, order.name)
@@ -2391,26 +2461,26 @@ local renderOrder; renderOrder = A.traceCallback("UI.lua:2366:renderOrder", func
         local offers=summary.members
         table.sort(offers, memberOrder)
         for _, crafter in ipairs(offers) do
-            button(crafter.name .. " · Susurrar", A.traceCallback("UI.lua:2387:callback", function()
+            button(crafter.name .. " · Susurrar", A.traceCallback("UI.lua:2464:callback", function()
                 openWhisperDraft(whisperTarget(crafter.name), "Hola, ¿coordinamos mi pedido de " .. order.name .. "?")
             end))
         end
         local actionX, actionY, actionWidth = layout.x, layout.y, layout.width
-        button("Marcar como completado", A.traceCallback("UI.lua:2392:callback", function()
+        button("Marcar como completado", A.traceCallback("UI.lua:2469:callback", function()
             if not A.closeOrder(order, true) then print("Tártaro: no se pudo completar el pedido.") end
         end), true, 166)
         layout.x, layout.width, layout.y = actionX + 172, actionWidth - 172, actionY
-        button("Cancelar", A.traceCallback("UI.lua:2396:callback", function()
+        button("Cancelar", A.traceCallback("UI.lua:2473:callback", function()
             if not A.closeOrder(order) then print("Tártaro: no se pudo cancelar el pedido.") end
         end))
         layout.x, layout.width = actionX, actionWidth
     elseif summary.own then
         line("Te ofreciste para fabricar este pedido.")
-        button("Susurrar al solicitante", A.traceCallback("UI.lua:2402:callback", function()
+        button("Susurrar al solicitante", A.traceCallback("UI.lua:2479:callback", function()
             openWhisperDraft(whisperTarget(owner.name), "Hola, puedo fabricar tu pedido de " .. order.name .. ".")
         end), false, 165)
     elseif A.canCraftOrder(order) then
-        button("Puedo fabricarlo", A.traceCallback("UI.lua:2406:callback", function()
+        button("Puedo fabricarlo", A.traceCallback("UI.lua:2483:callback", function()
             if not A.offerOrder(order) then print("Tártaro: no se pudo registrar la oferta. Volvé a intentar.") end
         end), true, 138)
     end
@@ -2418,20 +2488,20 @@ end)
 
 local recordGrid = components.Grid
 
-local professions; professions = A.traceCallback("UI.lua:2414:professions", function(onlyDetail)
+local professions; professions = A.traceCallback("UI.lua:2491:professions", function(onlyDetail)
     if professionView == "donations" then
         line("Solicitudes de donación", accent)
         local requests = A.listDonations()
         if #requests == 0 then
             line("No hay solicitudes activas.")
             line("Para solicitar una donación, elegí una receta en Buscar recetas y pulsá Solicitar en uno de sus materiales.")
-            button("Buscar recetas", A.traceCallback("UI.lua:2421:callback", function()
+            button("Buscar recetas", A.traceCallback("UI.lua:2498:callback", function()
                 professionView = "recipes"
                 scroll:SetVerticalScroll(0)
                 A.refresh()
             end))
         end
-        recordGrid(requests, A.traceCallback("UI.lua:2427:callback", function(request)
+        recordGrid(requests, A.traceCallback("UI.lua:2504:callback", function(request)
             local member = A.members[request.owner]
             local name, _, texture = A.professionItem(request.item)
             recipeDetail(request.quantity .. " × " .. (name or ("Objeto " .. request.item)), "", texture, request.item, nil, accent)
@@ -2440,7 +2510,7 @@ local professions; professions = A.traceCallback("UI.lua:2414:professions", func
             line("Publicado: " .. date("%d/%m/%Y %H:%M", request.created), nil, true)
             line("Caduca: " .. date("%d/%m/%Y %H:%M", request.created + 7 * 86400), nil, true)
             if request.owner == A.self then
-                button("Cerrar solicitud", A.traceCallback("UI.lua:2436:callback", function()
+                button("Cerrar solicitud", A.traceCallback("UI.lua:2513:callback", function()
                     local ok, err = A.closeDonation(request.id)
                     if not ok and err then print("Tártaro: " .. err) end
                 end))
@@ -2477,7 +2547,7 @@ local professions; professions = A.traceCallback("UI.lua:2414:professions", func
     recipeResults(onlyDetail)
 end)
 
-A.renderGroups = A.traceCallback("UI.lua:2473:A.renderGroups", function()
+A.renderGroups = A.traceCallback("UI.lua:2550:A.renderGroups", function()
     line("Buscar grupo", accent)
     if A.can(A.me, "group") then button("Estoy armando grupo", A.openGroupForm, true) end
     local active = {}
@@ -2487,9 +2557,9 @@ A.renderGroups = A.traceCallback("UI.lua:2473:A.renderGroups", function()
             active[#active + 1] = group
         end
     end
-    table.sort(active, A.traceCallback("UI.lua:2483:callback", function(left, right) return left.when > right.when end))
+    table.sort(active, A.traceCallback("UI.lua:2560:callback", function(left, right) return left.when > right.when end))
     if #active == 0 then line("No hay grupos buscando gente.") end
-    recordGrid(active, A.traceCallback("UI.lua:2485:callback", function(group)
+    recordGrid(active, A.traceCallback("UI.lua:2562:callback", function(group)
         local owner = A.members[group.owner]
         line(group.activity .. " · " .. owner.name, accent)
         local needs = A.groupRemainingNeeds(group)
@@ -2504,16 +2574,16 @@ A.renderGroups = A.traceCallback("UI.lua:2473:A.renderGroups", function()
                 if counts[role] < group.slots.roles[index] and members[A.self] ~= role
                     and (members[A.self] or total < group.slots.maximum) then
                     local choice = role
-                    button("Participar como " .. A.eventRoles[choice], A.traceCallback("UI.lua:2500:callback", function() A.requestGroupRole(group, choice) end))
+                    button("Participar como " .. A.eventRoles[choice], A.traceCallback("UI.lua:2577:callback", function() A.requestGroupRole(group, choice) end))
                 end
             end
             if total >= capacity then line("Cupos completos", accent) end
             if A.groupRequestPending(group) then line("Esperando confirmación del organizador.") end
             if members[A.self] then
                 line("Tu inscripción: " .. A.eventRoles[members[A.self]], accent)
-                button("Quitar mi inscripción", A.traceCallback("UI.lua:2507:callback", function() A.requestGroupRole(group, "-") end))
+                button("Quitar mi inscripción", A.traceCallback("UI.lua:2584:callback", function() A.requestGroupRole(group, "-") end))
                 if group.owner ~= A.self then
-                    button("Pedir invitación", A.traceCallback("UI.lua:2509:callback", function()
+                    button("Pedir invitación", A.traceCallback("UI.lua:2586:callback", function()
                         sendGroupWhisper(owner.name, "Me anoté como " .. A.eventRoles[members[A.self]]
                             .. " para " .. group.activity .. ". ¿Me invitás?")
                     end))
@@ -2529,18 +2599,18 @@ A.renderGroups = A.traceCallback("UI.lua:2473:A.renderGroups", function()
             end
         end
         if group.owner == A.self then
-            if group.selection then button("Editar búsqueda", A.traceCallback("UI.lua:2525:callback", function() A.editGroupForm(group) end)) end
-            button("Volver a publicar", A.traceCallback("UI.lua:2526:callback", function()
+            if group.selection then button("Editar búsqueda", A.traceCallback("UI.lua:2602:callback", function() A.editGroupForm(group) end)) end
+            button("Volver a publicar", A.traceCallback("UI.lua:2603:callback", function()
                 local ok, err = A.repostGroup(group)
                 if not ok and err then print("Tártaro: " .. err) end
                 A.refresh()
             end))
-            button("Cerrar búsqueda", A.traceCallback("UI.lua:2531:callback", function() A.closeGroup(group) end))
+            button("Cerrar búsqueda", A.traceCallback("UI.lua:2608:callback", function() A.closeGroup(group) end))
         elseif not group.slots then
             if group.requestState then
                 line(group.requestState)
             else
-                button("Pedir grupo", A.traceCallback("UI.lua:2536:callback", function()
+                button("Pedir grupo", A.traceCallback("UI.lua:2613:callback", function()
                     if A.groups[owner.id] ~= group or group.when + 1800 <= GetServerTime()
                         or not A.can(A.members[owner.id], "group") then A.refresh(); return end
                     group.requestState = sendGroupWhisper(owner.name, "Hola, ¿me invitás a tu grupo para " .. group.activity .. "?")
@@ -2552,15 +2622,15 @@ A.renderGroups = A.traceCallback("UI.lua:2473:A.renderGroups", function()
 end)
 
 local honorByTotal
-local honorRanking; honorRanking = A.traceCallback("UI.lua:2548:honorRanking", function()
+local honorRanking; honorRanking = A.traceCallback("UI.lua:2625:honorRanking", function()
     local columns = {8, 65, 305, 430, 570}
-    local honorRow; honorRow = A.traceCallback("UI.lua:2550:honorRow", function(values, color)
+    local honorRow; honorRow = A.traceCallback("UI.lua:2627:honorRow", function(values, color)
         return tableRow(values, columns, 26, 0, {color, color, color, color})
     end)
     line("Ranking de honor", accent)
     line("El honor semanal se reinicia el jueves a las 00:00, hora del reino.")
     line("Orden actual: honor " .. (honorByTotal and "total" or "semanal") .. " de mayor a menor; empates por nombre.")
-    button(honorByTotal and "Ordenar por honor semanal" or "Ordenar por honor total", A.traceCallback("UI.lua:2556:callback", function()
+    button(honorByTotal and "Ordenar por honor semanal" or "Ordenar por honor total", A.traceCallback("UI.lua:2633:callback", function()
         honorByTotal = not honorByTotal
         scroll:SetVerticalScroll(0)
         A.refresh()
@@ -2574,7 +2644,7 @@ local honorRanking; honorRanking = A.traceCallback("UI.lua:2548:honorRanking", f
             ranking[#ranking + 1] = {member = member, total = total, weekly = weekly, score = honorByTotal and total or weekly}
         end
     end
-    table.sort(ranking, A.traceCallback("UI.lua:2570:callback", function(left, right)
+    table.sort(ranking, A.traceCallback("UI.lua:2647:callback", function(left, right)
         if left.score ~= right.score then return left.score > right.score end
         return left.member.name < right.member.name
     end))
@@ -2607,7 +2677,7 @@ local tabs = {
     {"members", "Miembros", members},
     {"map", "Mapa", settings},
     {"permissions", "Permisos", permissions},
-    {"options", "Opciones", A.traceCallback("UI.lua:2603:callback", function() end)},
+    {"options", "Opciones", A.traceCallback("UI.lua:2680:callback", function() end)},
 }
 local renderers = {}
 for index, tab in ipairs(tabs) do
@@ -2617,7 +2687,7 @@ for index, tab in ipairs(tabs) do
     control:SetSize(sidebarWidth - 24, 29)
     control:SetPoint("TOPLEFT", 12, -(headerHeight + 16 + (index - 1) * 32))
     control:SetText(tab[2])
-    control:SetScript("OnClick", A.traceCallback("UI.lua:2613:callback", function()
+    control:SetScript("OnClick", A.traceCallback("UI.lua:2690:callback", function()
         page = id
         recipeSearch:ClearFocus()
         scroll:SetVerticalScroll(0)
@@ -2627,7 +2697,7 @@ for index, tab in ipairs(tabs) do
     tab.control = control
 end
 
-A.refresh = A.traceCallback("UI.lua:2623:A.refresh", function(detail)
+A.refresh = A.traceCallback("UI.lua:2700:A.refresh", function(detail)
     A.debugLog("view.request","UI.refresh",page,professionView,detail,A.guildStatus,win:IsShown())
     if not A.db then
         A.debugLog("view.blocked","UI.refresh",A.guildStatus)
@@ -2680,6 +2750,7 @@ A.refresh = A.traceCallback("UI.lua:2623:A.refresh", function(detail)
         professionControls:SetWidth(showSearch and 852 or 570)
         scroll:SetPoint("TOPLEFT", sidebarWidth + (showSearch and 436 or showCalendar and 698 or 18),
             -(headerHeight + (showSearch and 104 or professionPage and 53 or 18)))
+        content.sectionHeader:SetPoint("TOPLEFT",sidebarWidth+(showCalendar and 698 or 18),-(headerHeight+18))
         content:SetWidth(width)
         homeDivider:SetShown(A.db ~= nil and page == "home")
         homeRule:SetShown(A.db ~= nil and page == "home")
@@ -2696,12 +2767,16 @@ A.refresh = A.traceCallback("UI.lua:2623:A.refresh", function(detail)
         showDaily()
         if callPopup:IsShown() then positionCall() end
     end
-    components.Begin(width,page == "honor" or page == "members")
+    components.Begin(width,page == "honor" or page == "members" or page == "calendar")
     if page ~= "options" then
         if A.db then renderers[page](detail == "recipeDetail" and not layoutChanged)
         else line("Entrá a una hermandad para usar Tártaro.") end
     end
     components.Finish()
+    if page == "calendar" and calendarPanel.pendingFocus then
+        scroll:SetVerticalScroll(math.max(0, math.min(calendarPanel.focusY or 0, content:GetHeight() - scroll:GetHeight())))
+        calendarPanel.pendingFocus = nil
+    end
     if pendingOrderScroll and page == "professions" and professionView == "orders" then
         scroll:SetVerticalScroll(math.max(0, math.min(orderFocusY or 0, content:GetHeight() - scroll:GetHeight())))
         pendingOrderScroll, orderFocusY = nil, nil
@@ -2713,13 +2788,13 @@ A.refresh = A.traceCallback("UI.lua:2623:A.refresh", function(detail)
 end)
 
 local pendingSections
-A.invalidate = A.traceCallback("UI.lua:2709:A.invalidate", function(section)
+A.invalidate = A.traceCallback("UI.lua:2791:A.invalidate", function(section)
     if section == "permissions" or section == "roster" then
         callLauncher:SetShown(A.can(A.me, "call") == true)
     end
     if pendingSections then pendingSections[section] = true; return end
     pendingSections = {[section] = true}
-    C_Timer.After(0.08, A.traceCallback("UI.lua:2715:callback", function()
+    C_Timer.After(0.08, A.traceCallback("UI.lua:2797:callback", function()
         local dirty = pendingSections
         pendingSections = nil
         local visible = page == "professions" and professionView or page
@@ -2743,20 +2818,29 @@ A.invalidate = A.traceCallback("UI.lua:2709:A.invalidate", function(section)
     end))
 end)
 
-A.refreshProfessions = A.traceCallback("UI.lua:2739:A.refreshProfessions", function(detail)
+A.refreshProfessions = A.traceCallback("UI.lua:2821:A.refreshProfessions", function(detail)
     A.invalidate(detail and "recipeDetail" or "recipes")
     if not detail then A.invalidate("orders") end
 end)
 
-A.refreshHonor = A.traceCallback("UI.lua:2744:A.refreshHonor", function()
+A.refreshHonor = A.traceCallback("UI.lua:2826:A.refreshHonor", function()
     A.invalidate("honor")
 end)
 
-A.refreshMembers = A.traceCallback("UI.lua:2748:A.refreshMembers", function()
+A.refreshMembers = A.traceCallback("UI.lua:2830:A.refreshMembers", function()
     A.invalidate("members")
 end)
-C_Timer.NewTicker(5, A.traceCallback("UI.lua:2751:callback", function()
+C_Timer.NewTicker(5, A.traceCallback("UI.lua:2833:callback", function()
     if not win:IsShown() then return end
+    if page == "members" and A.db then
+        for id, member in pairs(A.members) do
+            if memberPresence[id] ~= A.addonPresence(member) then
+                A.debugLog("presence.changed", "UI.members", id, memberPresence[id], A.addonPresence(member))
+                A.refreshMembers()
+                break
+            end
+        end
+    end
     if page == "map" or page == "groups" then A.invalidate(page) end
     if (page == "calendar" or page == "home") and win.nextEventAt and win.nextEventAt <= GetServerTime() then
         A.invalidate("events")
@@ -2765,7 +2849,7 @@ C_Timer.NewTicker(5, A.traceCallback("UI.lua:2751:callback", function()
     if page == "professions" and professionView == "donations" then A.invalidate("donations") end
 end))
 
-local toggle; toggle = A.traceCallback("UI.lua:2761:toggle", function()
+local toggle; toggle = A.traceCallback("UI.lua:2852:toggle", function()
     if A.traceLoad then A.traceLoad("toggle.begin", "UI.lua") end
     if combatWindowsBlocked() then
         if A.traceLoad then A.traceLoad("toggle.blocked", "UI.lua", "combat") end
@@ -2798,13 +2882,13 @@ local defaultAngle = -3 * math.pi / 4
 local launcherAngle = defaultAngle
 local dragged = false
 
-local placeLauncher; placeLauncher = A.traceCallback("UI.lua:2794:placeLauncher", function()
+local placeLauncher; placeLauncher = A.traceCallback("UI.lua:2885:placeLauncher", function()
     local radius = math.min(Minimap:GetWidth(), Minimap:GetHeight()) * 0.51
     launcher:ClearAllPoints()
     launcher:SetPoint("CENTER", Minimap, "CENTER", radius * math.cos(launcherAngle), radius * math.sin(launcherAngle))
 end)
 
-local followCursor; followCursor = A.traceCallback("UI.lua:2800:followCursor", function()
+local followCursor; followCursor = A.traceCallback("UI.lua:2891:followCursor", function()
     local centerX, centerY = Minimap:GetCenter()
     if not centerX or not centerY then return end
     local cursorX, cursorY = GetCursorPosition()
@@ -2816,7 +2900,7 @@ local followCursor; followCursor = A.traceCallback("UI.lua:2800:followCursor", f
 end)
 
 launcher:RegisterEvent("PLAYER_LOGIN")
-launcher:SetScript("OnEvent", A.traceCallback("UI.lua:2812:callback", function(self)
+launcher:SetScript("OnEvent", A.traceCallback("UI.lua:2903:callback", function(self)
     local saved = TartaroDB and TartaroDB.minimapAngle
     if type(saved) == "number" and saved >= -math.pi and saved <= math.pi then launcherAngle = saved end
     placeLauncher()
@@ -2825,21 +2909,21 @@ end))
 Minimap:HookScript("OnSizeChanged", placeLauncher)
 placeLauncher()
 
-launcher:SetScript("OnMouseDown", A.traceCallback("UI.lua:2821:callback", function() dragged = false end))
-launcher:SetScript("OnClick", A.traceCallback("UI.lua:2822:callback", function()
+launcher:SetScript("OnMouseDown", A.traceCallback("UI.lua:2912:callback", function() dragged = false end))
+launcher:SetScript("OnClick", A.traceCallback("UI.lua:2913:callback", function()
     if not dragged then toggle() end
 end))
-launcher:SetScript("OnDragStart", A.traceCallback("UI.lua:2825:callback", function(self)
+launcher:SetScript("OnDragStart", A.traceCallback("UI.lua:2916:callback", function(self)
     dragged = true
     GameTooltip:Hide()
     self:SetScript("OnUpdate", followCursor)
 end))
-launcher:SetScript("OnDragStop", A.traceCallback("UI.lua:2830:callback", function(self)
+launcher:SetScript("OnDragStop", A.traceCallback("UI.lua:2921:callback", function(self)
     followCursor()
     self:SetScript("OnUpdate", nil)
     if TartaroDB then TartaroDB.minimapAngle = launcherAngle end
 end))
-launcher:SetScript("OnHide", A.traceCallback("UI.lua:2835:callback", function(self)
+launcher:SetScript("OnHide", A.traceCallback("UI.lua:2926:callback", function(self)
     self:SetScript("OnUpdate", nil)
 end))
 local emblem = launcher:CreateTexture(nil, "BACKGROUND")
@@ -2851,21 +2935,22 @@ rim:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
 rim:SetSize(53, 53)
 rim:SetPoint("TOPLEFT")
 launcher:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-launcher:SetScript("OnEnter", A.traceCallback("UI.lua:2847:callback", function(self)
+launcher:SetScript("OnEnter", A.traceCallback("UI.lua:2938:callback", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:SetText("Tártaro", 1, 0.79, 0.53)
     GameTooltip:AddLine("Clic para abrir o cerrar", 1, 1, 1)
     GameTooltip:AddLine("Arrastrá con clic izquierdo para mover", 1, 1, 1)
     GameTooltip:Show()
 end))
-launcher:SetScript("OnLeave", A.traceCallback("UI.lua:2854:callback", function() GameTooltip:Hide() end))
+launcher:SetScript("OnLeave", A.traceCallback("UI.lua:2945:callback", function() GameTooltip:Hide() end))
 
-A.resetGuildWindows = A.traceCallback("UI.lua:2856:A.resetGuildWindows", function()
+A.resetGuildWindows = A.traceCallback("UI.lua:2947:A.resetGuildWindows", function()
     selectedEvent=nil
+    calendarPanel.pendingFocus, calendarPanel.focusY, calendarPanel.renderedEvent = nil, nil, nil
     calendarPanel:Reset()
     selectedOrder, pendingOrderScroll, orderFocusY, orderNotice = nil, nil, nil, nil
-    pendingEvents, offeredEvents, scheduledReminders, activeNotice = {}, {}, {}, nil
-    dailyState = {dismissed = {}}
+    pendingEvents, eventNotices.offered, eventNotices.scheduled, activeNotice = {}, {}, {}, nil
+    dailyState = {}
     for _, frame in ipairs({win, editor, TartaroActivityForm, daily, eventPopup, callPopup}) do
         frame.resumeAfterCombat = nil
         frame:Hide()
@@ -2874,15 +2959,18 @@ A.resetGuildWindows = A.traceCallback("UI.lua:2856:A.resetGuildWindows", functio
     callLauncher:Hide()
 end)
 
-A.updateCombatWindows = A.traceCallback("UI.lua:2870:A.updateCombatWindows", function()
+A.updateCombatWindows = A.traceCallback("UI.lua:2962:A.updateCombatWindows", function()
     if not A.db then A.resetGuildWindows(); return end
+    if daily.NotificationsBlocked() then
+        eventPopup:Hide()
+        daily:Hide()
+    end
     if A.updateDonationCombat then A.updateDonationCombat(combatWindowsBlocked()) end
     if combatWindowsBlocked() then
         local form = TartaroActivityForm
         if form:IsShown() then form.resumeAfterCombat = true; form:Hide() end
         if editor:IsShown() then editor.resumeAfterCombat = true; editor:Hide() end
         if win:IsShown() then win.resumeAfterCombat = true; win:Hide() end
-        if activeNotice and eventPopup:IsShown() then table.insert(pendingEvents, 1, activeNotice) end
         eventPopup:Hide()
         daily:Hide()
         callPopup:Hide()
@@ -2904,8 +2992,11 @@ end)
 local combatEvents = CreateFrame("Frame")
 combatEvents:RegisterEvent("PLAYER_REGEN_DISABLED")
 combatEvents:RegisterEvent("PLAYER_REGEN_ENABLED")
-combatEvents:SetScript("OnEvent", A.traceCallback("UI.lua:2900:callback", function(_, event)
-    inCombat = event == "PLAYER_REGEN_DISABLED"
+combatEvents:RegisterEvent("PLAYER_ENTERING_WORLD")
+combatEvents:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+combatEvents:SetScript("OnEvent", A.traceCallback("UI.lua:2997:callback", function(_, event)
+    if event == "PLAYER_REGEN_DISABLED" then inCombat = true
+    elseif event == "PLAYER_REGEN_ENABLED" then inCombat = false end
     A.updateCombatWindows()
 end))
 
@@ -2916,7 +3007,7 @@ StaticPopupDialogs["TARTARO_RESET_OPTIONS"] = {
     timeout = 0,
     whileDead = true,
     hideOnEscape = true,
-    OnAccept = A.traceCallback("UI.lua:2912:callback", function()
+    OnAccept = A.traceCallback("UI.lua:3010:callback", function()
         if TartaroDB.shareLocation == false then A.setSharing(true) end
         for _, key in ipairs({"shareLocation", "callSound", "callSoundVolume", "callSoundChoice", "hideWindowsInCombat",
             "minimapAngle", "callLauncherPosition", "callLauncherSize", "noticePosition"}) do

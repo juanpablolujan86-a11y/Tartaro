@@ -1,5 +1,17 @@
 # Cambios
 
+## 0.2.1 — entrega local para pruebas
+
+- Mensaje del día una vez al día local o cuando cambia el contenido, con registro persistente por personaje/hermandad. Los popups no se reinician por /reload.
+- Avisos diarios de eventos pendientes solo en su fecha local; un recordatorio único en la ventana -30/+30 minutos, incluidos inscritos, sin doble popup al entrar directamente en esa ventana. Más de 30 minutos después no se muestra.
+- Popups y resumen local de eventos bloqueados en combate, mazmorra, banda, BG y arena. Avisos pendientes se reevalúan al salir; se conservan autorización, hora local y anuncios manuales UTC.
+- Resumen de eventos de hoy en chat local una vez por evento y carga, sin envío a hermandad. Calendario presenta todas las tarjetas del día por horario, sin selector, con fecha/conteo fijos y scroll solo de tarjetas; conserva foco y acciones por evento.
+
+- Separa la conexión de WoW de la presencia de Tártaro y conserva la detección histórica. Activo, Sin confirmar, Histórico y Sin detectar; tooltip con último mensaje recibido en hora local y registro local identificado para el propio personaje.
+- Caducidad de confirmación de 150 segundos con reloj monotónico en memoria; no reutiliza confirmaciones de una sesión anterior. Desconexión/cambio de hermandad invalidan la confirmación, sin borrar el historial.
+- Reutiliza mensajes y temporizadores existentes; sin tráfico periódico adicional. Refresco de Miembros al cambiar el estado, incluido vencimiento con la tabla abierta. Conserva orden histórico, susurro/invitación, permisos y protocolo.
+- Versión local 0.2.1 confirmada por el propietario. Verificación estática; pendiente comprobación manual en Forever. Commit local e instalación autorizados para pruebas; sin publicación remota.
+
 ## 0.2.0 — propuesta de integración
 
 - Inicio: acceso directo a pedidos por ID, resaltado/desplazamiento y aviso si dejaron de estar disponibles. Separación de pedidos propios y aquellos para los que el personaje se ofreció.
