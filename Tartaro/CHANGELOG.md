@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.2.1 — commit local: llamado desde cadáver
+
+- Permitir preparar el llamado como fantasma usando exclusivamente coordenadas del cadáver y contexto de muerte observado en esta sesión; rechazar cuerpos de instancia, datos ausentes o cambios de estado/destino antes de enviar.
+- Identificar el cadáver en la confirmación. Conservar protocolo, permisos, llamado vivo, cooldown, duración y recepción. Sin temporizadores o SavedVariables nuevas.
+- Login/reload ya fantasma sin contexto de muerte: rechazo explícito. Verificación estática realizada; instalado posteriormente para pruebas con 40 archivos verificados por SHA256. Pruebas reales en Forever pendientes; sin publicación remota de este cambio.
+
 ## 0.2.1 — ampliación local del 26/11/2026
 
 - Ventana: opción de mantener el centro horizontal y crecer hacia abajo, con persistencia propia de posición y coordinación con el apilado de avisos. Incluida en Restablecer configuración.

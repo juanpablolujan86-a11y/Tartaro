@@ -1,5 +1,15 @@
 # Estado de desarrollo de Tartaro
 
+## Llamado desde el cadáver — implementación local, 26/11/2026
+
+- Instalación posterior autorizada y realizada para pruebas: 40 archivos coincidentes por SHA256 en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`, sin extras ni interacción con el cliente. Sin commit/push; verificación funcional pendiente del usuario.
+
+- Autorizado permitir llamado en modo fantasma desde el cadáver; Map.lua consulta C_DeathInfo y UI.lua identifica el destino en la confirmación. Revalida estado, permiso y coordenadas al aceptar; sin cambios de protocolo CTA, cooldown o duración.
+- PLAYER_DEAD conserva contexto de mundo/instancia y mapa en memoria; el cadáver de instancia se rechaza aunque el fantasma esté fuera. PLAYER_UNGHOST limpia el contexto. Si se inicia o recarga ya fantasma sin contexto de muerte, no se envía. Sin SavedVariables nuevas, coordenadas de reserva ni temporizadores.
+- Se consultan el mapa registrado al morir y hasta tres mapas superiores, sin recorrer todos los mapas ni convertir coordenadas manualmente. Coordenadas ausentes/invalidas bloquean el envío.
+- Detalle y criterios manuales: [bitácora](docs/MEJORAS-DISENO-MENU.md#llamado-desde-el-cadáver--26112026). Pendiente validación dentro de Forever; no se afirma funcionamiento E2E.
+- Versión conservada 0.2.1. Autorizado consolidar los cambios posteriores a 84baf3c en un nuevo commit local, con instalación para pruebas ya realizada, y publicarlo en la rama del PR #16 mientras siga abierto. Comprobado abierto y sin integrar antes de esta operación; actualizar su descripción sin merge ni auto-merge. Las referencias a «sin commit» en la bitácora describen las entregas previas.
+
 ## Entrega adicional en commit local — 26/11/2026
 
 - Autorizado un nuevo commit local en main, conservando 0.2.1 y tomando 07155cd como padre. [Resumen consolidado](docs/CAMBIOS-LOCALES-0.2.1.md): ventana/persistencia, Overlord/versiones, acceso 0/1/Dev y optimizaciones 1 a 10 con sus límites.

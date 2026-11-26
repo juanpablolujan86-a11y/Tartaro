@@ -699,3 +699,31 @@ La autorización se limita al desarrollo local; no se instala, hace commit ni pu
 Verificación: compilación estática de los 19 Lua con Lua 5.1, XML, caracteres, TOC/recursos y 40 archivos; etiquetas numéricas de traza actualizadas, 552 funciones instrumentadas y 21 llamadas protegidas; diff revisado. Sin ejecución del addon, simuladores ni interacción con WoW. Pendiente revisión manual: mover y cerrar/reabrir; reload y cierre completo/reapertura; ambos modos, navegación entre tamaños, alternar preferencia con avisos presentes/ausentes, arrastrar el conjunto, ocultamiento/restauración por combate, reset y límites de pantalla. Sin posición propia previa, colocar la ventana una vez; no se puede restaurar una ubicación histórica no guardada.
 
 Instalación posterior autorizada de la corrección de posición — 25/11/2026: versión 0.2.1 copiada a C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro. Los 40 archivos coinciden por SHA256 con la fuente y no hay archivos adicionales. UI.lua: 94BD12C47A5D0AA8C03E3F18A28DDC016552ABB116EA251536D910E1FB923F72. HEAD conservado; sin commit, push, ZIP, respaldos, borrados, modificación externa de SavedVariables o interacción con el cliente. Pendiente comprobación manual del usuario.
+
+
+## Llamado desde el cadáver — 26/11/2026
+
+Implementación local autorizada posterior a 84baf3c. Se retira únicamente el rechazo incondicional de fantasma; el origen pasa a la posición real del cadáver obtenida por C_DeathInfo.GetCorpseMapPosition. Vivo y muerto sin liberar conservan el flujo previo de posición del personaje.
+
+Map.lua registra en memoria el contexto de PLAYER_DEAD (A.db, IsInInstance y mapa), lo limpia al resucitar o entrar vivo y exige el mismo contexto de hermandad. No persiste datos ni conserva coordenadas aproximadas al morir. La consulta intenta el mapa registrado y hasta tres padres, con detección de ciclos y validación numérica/no secreta; acepta el vector de la API y el retorno de dos números contemplado por ForeverDungeonJournal instalado. Errores de consultas se capturan mediante debugPcall; no hay sustitución por fantasma/cementerio. No se añade dependencia de esos addons.
+
+La confirmación muestra «la ubicación de tu cadáver» seguida de zona/coordenadas. Al aceptar se revalidan permisos e instancia y se rechaza un cambio entre vivo/fantasma. Para cadáver se vuelve a consultar y se compara mapa/coordenadas con la precisión existente de transmisión (cinco decimales): un destino diferente exige abrir otra confirmación. CTA, recepción, sonido, chat, marcador, cooldown de 30 segundos y duración de 300 segundos conservados. La procedencia del cadáver es una distinción local de confirmación; no se añade un campo remoto.
+
+Limitación deliberada: si el addon no observó la muerte en esta sesión (incluido reload/login estando fantasma), no hay prueba del contexto original y el llamado se rechaza con explicación. IsInInstance del fantasma por sí solo no permite concluir dónde está el cuerpo. Un cadáver conocido dentro de una instancia siempre se rechaza. Si la API no proporciona el cadáver en los mapas consultados, no se envía. No se promete cobertura de todos los mapas.
+
+Criterios pendientes de verificación manual, a ejecutar por el usuario:
+
+1. Mundo abierto, con permiso: morir y liberar sin reload; confirmar que zona/coordenadas y marcador recibido corresponden al cuerpo y no al cementerio/fantasma. Cancelar no debe emitir CTA.
+2. Sin permiso, en instancia o cuerpo de instancia con fantasma fuera: rechazo sin envío. Conservar cooldown y cierre del llamado existente.
+3. API sin posición válida o entrada/reload ya fantasma: mensaje explicativo, sin llamado ni ubicación alternativa.
+4. Abrir confirmación como vivo y liberar, o abrirla como fantasma y resucitar: rechazo al aceptar. Si cambia la ubicación del cuerpo, exigir nueva confirmación.
+5. Llamado vivo y muerto sin liberar: conservar posición confirmada y comportamiento previo. Clientes anteriores deben recibir CTA sin cambio de formato.
+6. Con debug activo, revisar consultas/capturas y errores reales; con debug apagado no activar registros. Sin certificación hasta comprobarlo en Forever.
+
+Verificación local: compilación estática de 19 módulos con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres, etiquetas de línea y diff. Cobertura estructural actual: 565 funciones propias instrumentadas y 24 llamadas protegidas. No se ejecutaron addon, simulaciones ni APIs de WoW. Sin commit, push, actualización de PR, ZIP o instalación por esta implementación.
+
+
+Instalación posterior autorizada — 26/11/2026: la implementación local de llamado desde el cadáver (0.2.1, posterior a 84baf3c y sin commit) se copió en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`. Los 40 archivos coinciden con la fuente por SHA256; sin extras, borrados, respaldos o ZIP. HEAD conservado; sin push, modificación del PR ni interacción con el cliente. Pendiente prueba funcional por el usuario; coincidencia de archivos no certifica ejecución.
+
+
+Consolidación posterior autorizada — 26/11/2026: nuevo commit local sobre 84baf3c, conservando 0.2.1 e incluyendo implementación, límites, verificación estática y evidencia de instalación anteriores. El usuario autorizó posteriormente publicarlo en la rama del PR #16 si continúa abierto, con actualización descriptiva y sin merge ni auto-merge. Se comprobó abierto y sin integrar antes de operar. Sin nueva instalación. El commit que contiene esta anotación identifica la entrega. Las pruebas dentro de Forever siguen pendientes.
