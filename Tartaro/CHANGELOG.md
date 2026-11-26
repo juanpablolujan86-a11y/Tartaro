@@ -1,5 +1,35 @@
 # Cambios
 
+## 0.2.1 — ampliación local del 26/11/2026
+
+- Ventana: opción de mantener el centro horizontal y crecer hacia abajo, con persistencia propia de posición y coordinación con el apilado de avisos. Incluida en Restablecer configuración.
+- Miembros: columna Overlord e informes de versiones/fechas de ambos addons, con distinción entre estado confirmado e histórico y campos opcionales del protocolo V.
+- Miembros/Permisos: menú y acciones administrativas limitados a rangos 0/1 o rango 8 llamado exactamente Dev; sin autorización por modo debug.
+- Optimización de filas bajo demanda, catálogo por objeto/perfiles del roster, colas de envío y liberación de paquetes, mapa y limpieza de posiciones, transferencias vencidas, avisos ordenados y refrescos por datos/vencimientos. Reutilización de ofertas/asistencia y fichas del roster.
+- Diagnóstico: 17 llamadas evitan preparar datos costosos con debug apagado; registros de carga/errores/operaciones conservados. Las etiquetas de traza reflejan las líneas actuales.
+- Verificación estática: 19 módulos compilados con LuaJIT compatible Lua 5.1; XML, TOC/recursos y 40 archivos. Revisión de cableado sin conexiones obligatorias ausentes detectadas. Ejecución real y consumo siguen pendientes de validación; puntos 1/3/8 del plan parcialmente mitigados.
+- Entrega en commit local autorizado; sin publicación remota ni nueva instalación por el commit. Las entradas siguientes son el historial de implementación previo a su consolidación.
+
+## Cambio local en revisión — menú administrativo
+
+- Miembros y Permisos solo figuran en el navegador para rangos 0 y 1; el resto de entradas se compactan sin huecos. Se bloquean acceso y renderizado no autorizados.
+- Revalidación por roster/permisos, también desde Opciones. Al perder acceso se cierra el contenido administrativo y se vuelve a Inicio; acciones pendientes de Miembros revalidan autorización.
+- Sin excepción de desarrollador basada en debug, ni cambios de datos, protocolo o permisos de negocio. Pendiente prueba manual; sin commit, push o instalación de este filtro. Versión conservada 0.2.1.
+
+## Cambio local en revisión — Overlord y versiones en Miembros
+
+- Nueva columna Overlord con estado comunicado por el cliente: Cargado, Desactivado, Sin cargar, Instalado, No instalado, Sin datos o Histórico. Sin informe compatible no se afirma que esté ausente. Miembros se amplía para alojarla sin eliminar columnas.
+- Tooltip de fila con versiones de Tártaro y Overlord, fecha local del informe y distinción de dato local/remoto e histórico. Se conserva conexión del roster, clasificación y acciones.
+- Mensaje V ampliado con campos opcionales, compatible con lectores anteriores. Emisión automática al reconocer la hermandad, tras login/reload y a los 5 segundos; renovación cada 60 segundos sobre el request existente. Sin acciones manuales, temporizador nuevo o mensajes visibles adicionales.
+- Informes históricos persistentes; vigencia de 150 segundos con reloj monotónico y expiración independiente de otros mensajes de Tártaro. Solo se registra el remitente validado, con estado y versiones acotados.
+- Versión local 0.2.1 conservada; sin commit ni push, con reinstalación autorizada para pruebas. Verificación estática correcta; pendiente prueba manual en Forever.
+
+## Cambio local en revisión — anclaje opcional de ventana
+
+- Opciones: «Mantener centro horizontal y crecer hacia abajo», desmarcada por defecto. Conserva la posición del centro del emblema al navegar entre tamaños, con compensación de escala y apilado de avisos; sigue sujeto a los límites de pantalla.
+- El arrastre actualiza el punto de referencia. Desactivar recupera el tipo de anclaje previo en la posición visible; Restablecer configuración desactiva la preferencia. Sin nuevos módulos, temporizadores o mensajes.
+- Cambio posterior al commit 07155cd, sin commit ni publicación; instalación autorizada para pruebas, versión conservada 0.2.1. Verificación estática correcta; pendiente comprobación manual en Forever.
+
 ## 0.2.1 — entrega local para pruebas
 
 - Mensaje del día una vez al día local o cuando cambia el contenido, con registro persistente por personaje/hermandad. Los popups no se reinician por /reload.

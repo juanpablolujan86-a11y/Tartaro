@@ -139,10 +139,13 @@ C_Timer.NewTicker(0.7, A.traceCallback("Donations.lua:133:callback", function()
     if outgoing.db ~= A.db then outgoing = nil; return end
     local nextPacket = outgoing[cursor]
     if not nextPacket then outgoing = nil
-    elseif A.sendProfessionPart(unpack(nextPacket)) then cursor = cursor + 1 end
+    elseif A.sendProfessionPart(unpack(nextPacket)) then
+        outgoing[cursor] = nil
+        cursor = cursor + 1
+    end
 end))
 
-A.donationNames = A.traceCallback("Donations.lua:145:A.donationNames", function(item)
+A.donationNames = A.traceCallback("Donations.lua:148:A.donationNames", function(item)
     local now = GetServerTime()
     if not index or indexDB ~= A.db or now >= expires then
         index, indexDB, expires = {}, A.db, now + lifetime
@@ -164,7 +167,7 @@ end)
 
 -- Reuse only our own lines; never clear or replace lines supplied by the game or another addon.
 local tooltipState = setmetatable({}, {__mode = "k"})
-A.clearDonationTooltip = A.traceCallback("Donations.lua:167:A.clearDonationTooltip", function()
+A.clearDonationTooltip = A.traceCallback("Donations.lua:170:A.clearDonationTooltip", function()
     for tooltip, entries in pairs(tooltipState) do
         for _, entry in ipairs(entries) do
             local current = entry.label:GetText()
@@ -176,7 +179,7 @@ A.clearDonationTooltip = A.traceCallback("Donations.lua:167:A.clearDonationToolt
         tooltipState[tooltip] = nil
     end
 end)
-local tooltip; tooltip = A.traceCallback("Donations.lua:179:tooltip", function(tooltip, data)
+local tooltip; tooltip = A.traceCallback("Donations.lua:182:tooltip", function(tooltip, data)
     if tooltip ~= GameTooltip then return end
     local previous, state = tooltipState[tooltip], {}
     if previous then
@@ -214,11 +217,11 @@ local tooltip; tooltip = A.traceCallback("Donations.lua:179:tooltip", function(t
     tooltip:Show()
 end)
 if GameTooltip then
-    GameTooltip:HookScript("OnTooltipCleared", A.traceCallback("Donations.lua:217:callback", function(self) tooltipState[self] = nil end))
+    GameTooltip:HookScript("OnTooltipCleared", A.traceCallback("Donations.lua:220:callback", function(self) tooltipState[self] = nil end))
     if TooltipDataProcessor and Enum and Enum.TooltipDataType then
         TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, tooltip)
     else
-        A.debugPcall("Donations.lua:221:pcall", GameTooltip.HookScript, GameTooltip, "OnTooltipSetItem", tooltip)
+        A.debugPcall("Donations.lua:224:pcall", GameTooltip.HookScript, GameTooltip, "OnTooltipSetItem", tooltip)
     end
 end
 if A.traceLoad then A.traceLoad("module.end", "Donations.lua") end

@@ -1,5 +1,81 @@
 # Estado de desarrollo de Tartaro
 
+## Entrega adicional en commit local — 26/11/2026
+
+- Autorizado un nuevo commit local en main, conservando 0.2.1 y tomando 07155cd como padre. [Resumen consolidado](docs/CAMBIOS-LOCALES-0.2.1.md): ventana/persistencia, Overlord/versiones, acceso 0/1/Dev y optimizaciones 1 a 10 con sus límites.
+- Validación de cableado estática sin conexiones obligatorias ausentes detectadas; 19 módulos compilados con LuaJIT compatible Lua 5.1, XML/TOC/recursos y 40 archivos. 563 funciones instrumentadas y 21 llamadas protegidas. No equivale a ejecución dentro de Forever.
+- Pruebas manuales y medición pendientes; puntos 1/3/8 parciales. Acceso Dev confirmado por el usuario y 2 MB menos reportados en una entrega previa, sin medición independiente.
+- Sin push, merge, release, ZIP o instalación en esta operación. Las secciones siguientes y la bitácora conservan el estado de cada entrega anterior, incluidas sus referencias a cambios aún sin commit en aquel momento. El commit de esta entrega se identifica mediante git log -1.
+
+## Optimización local de refrescos y diagnóstico — 26/11/2026
+
+- Autorizados hallazgos 9/10 del [plan](docs/PLAN-OPTIMIZACION-MEMORIA-CPU.md): listas refrescan por datos o próximo plazo, Mapa compara estado visible y Miembros conserva comparación de presencia. Navegador reaplica disponibilidad/anclajes/estilos solo al cambiar, con autorización siempre revalidada. Se reutilizan ofertas/asistencia en el mismo render.
+- GroupAttendance invalida al limpiar peticiones pendientes o recibir FULL, conservando actualización visual sin reconstrucción periódica general. Se preservan reglas temporales, reloj/hora local, acciones e invalidaciones de negocio.
+- LoadTrace expone su estado real mediante isDebugEnabled; 17 logs costosos de UI preparan argumentos solo con debug activo. Captura de carga, errores, operaciones, límites y apagado por defecto conservados.
+- Verificación estática: 19 Lua 5.1, XML, caracteres, TOC/recursos y 40 archivos; 563 funciones instrumentadas y 21 llamadas protegidas. Pendientes validación manual de vistas/caducidad/ambos modos de debug y medición neta de CPU/RAM. Los puntos parciales 1/3/8 siguen abiertos.
+- Main local 0.2.1, cambios previos conservados. Refrescos/diagnóstico instalados posteriormente por autorización del usuario: 40 archivos coincidentes por SHA256, sin extras. Sin commit, push o interacción con WoW; pendiente validación manual.
+
+## Optimización local de perfiles y roster — 26/11/2026
+
+- Autorizados hallazgos 7/8 del [plan](docs/PLAN-OPTIMIZACION-MEMORIA-CPU.md): RecipeCatalog prepara recetas solo para identificadores del roster disponible, conservando toda la historia. Entradas/salidas invalidan catálogo estructural para incorporar perfiles omitidos o retirar referencias visibles.
+- Core reutiliza fichas sin cambios, reemplaza las cambiadas sin mutar la instantánea previa y conserva mapas de miembros/rangos cuando son iguales. El personaje propio y los alias mantienen su normalización. El punto 8 queda parcial: siguen consultas completas y mapas candidatos; no se añade demora a eventos de permisos/conexión.
+- Verificación estática: 19 Lua 5.1, XML, caracteres, TOC/recursos y 40 archivos; 558 funciones instrumentadas y 21 llamadas protegidas. Pendiente validación manual de roster parcial/cambios, recetas, permisos y presencia/Overlord, y medición de consumo.
+- Main local 0.2.1, cambios previos conservados. Perfiles/roster instalados posteriormente por autorización del usuario: 40 archivos coincidentes por SHA256, sin extras. Sin commit, push o interacción con WoW; pendiente validación manual.
+
+## Optimización local de transferencias y avisos — 26/11/2026
+
+- Autorizados hallazgos 5/6 del [plan](docs/PLAN-OPTIMIZACION-MEMORIA-CPU.md): Professions elimina la transferencia vencida solo si sigue siendo la misma en el mismo contexto. Mantiene plazo y temporizador existentes; no cancela capturas antiguas antes de su plazo.
+- UI reutiliza lista de eventos ordenada por hora/ID y calcula la próxima entrada en ventana de recordatorio. El ticker de cinco segundos conserva comprobaciones de bloqueo, día, mensaje diario, popups/cola e historial. Core/UI invalidan al cambiar eventos, inscripciones o contexto; se reevalúa ante retroceso de reloj/cambio de desfase local. Sin otro temporizador o cambios de protocolo/recibos.
+- Verificación estática: 19 Lua 5.1, XML, caracteres, TOC/recursos y 40 archivos; 557 funciones instrumentadas y 21 llamadas protegidas. Pendientes pruebas reales de recepción/caducidad y reglas de avisos, así como medición de consumo. No se ejecutan simuladores ni se controla WoW.
+- Main local 0.2.1, cambios previos conservados. Transferencias/avisos instalados posteriormente por autorización del usuario: 40 archivos coincidentes por SHA256 y sin extras. Sin commit, push o interacción con WoW; pendiente validación manual.
+
+## Optimización local de sincronización y mapa — 25/11/2026
+
+- Autorizados hallazgos 3/4 del [plan](docs/PLAN-OPTIMIZACION-MEMORIA-CPU.md): cola circular de 160 mensajes, serialización única por intento de replay y liberación de paquetes consumidos en Core/Donations/Orders/GroupAttendance. Se conservan protocolo, solicitudes completas, frecuencias, límites, deduplicación y reintentos; el hallazgo 3 queda parcialmente mitigado, sin reducción de tráfico comprobada.
+- Map agrupa callbacks de vista con la espera existente de 0,12 segundos, cancela repintados diferidos ya cubiertos, reutiliza registros de posición y evita propiedades de marcadores sin cambios. Continúan ticker mundial de 1 segundo, minimapa de 0,25 y SetPosition nativo. El ticker mundial también limpia caducados con mapa cerrado. Sin cachear transformaciones ni tocar iconos ajenos.
+- Verificación estática: 19 Lua 5.1, XML, caracteres, TOC/recursos y 40 archivos correctos; 556 funciones instrumentadas y 21 llamadas protegidas. Pendientes pruebas manuales de colas/sincronización multicliente y mapa/OpenMap, y medición comparativa de CPU/RAM.
+- Main local 0.2.1; cambios de sincronización/mapa instalados posteriormente por autorización del usuario: 40 archivos coincidentes por SHA256, sin extras. Sin commit, push o interacción con WoW. Cambios anteriores conservados; pendiente validación manual.
+
+## Persistencia de posición principal — 25/11/2026
+
+- Corrección local en UI.lua: posición principal explícita en TartaroDB.windowPosition, con anclaje/coordenadas normalizadas y referencia del emblema para el modo centrado. Restauración en login y reintento desde refresh si la geometría inicial aún no está disponible; guardado al arrastrar, ocultar, salir y cambiar la preferencia.
+- Antes del apilado se conserva la posición independiente; durante el apilado no se sustituyen sus coordenadas por las temporales. El modo centrado conserva la referencia estable salvo movimiento deliberado. Restablecer configuración incluye la nueva posición. Datos anteriores sin registro propio mantienen el posicionamiento disponible; no se recupera una ubicación perdida que no quedó guardada.
+- Instalada posteriormente por autorización del usuario: versión 0.2.1, 40 archivos coincidentes por SHA256 y sin archivos adicionales. Pendiente validación manual. Sin commit, push ni interacción con WoW. Detalle y criterios en [bitácora](docs/MEJORAS-DISENO-MENU.md).
+- El usuario reporta 2 MB menos de RAM tras la optimización anterior; se registra como observación manual sin método de medición comunicado, no como cuantificación independiente ni prueba de todos los escenarios.
+
+## Plan de memoria y CPU — 25/11/2026
+
+- [Hallazgos, propuestas y criterios de verificación](docs/PLAN-OPTIMIZACION-MEMORIA-CPU.md): diez puntos contrastados en el código local 0.2.1; costes lógicos separados de consumo real todavía no medido. Incluye secuencia propuesta y restricciones de funcionalidad, compatibilidad y trazabilidad.
+- Autorización posterior para hallazgos 1 y 2: controles de fila bajo demanda y limpieza de callbacks; actualización de metadatos por objeto sin invalidar toda la estructura de recetas. Cambios locales en UIComponents/UI/RecipeCatalog/Professions, versión 0.2.1; instalados posteriormente para pruebas por autorización del usuario (40 archivos coincidentes por SHA256). Sin commit ni push. Se conservan cambios anteriores.
+- Hallazgo 1 mitigado parcialmente: aún se construyen listas completas y el conjunto de filas conserva su máximo; virtualización pendiente. Hallazgo 2 implementado localmente. Detalle, límites y criterios manuales en el plan; no se atribuye ahorro en MB o CPU medidos.
+- Verificación estática correcta: 19 Lua 5.1, XML, caracteres, TOC/recursos, 40 archivos; 548 funciones instrumentadas y 21 llamadas protegidas. No se ejecutaron addon ni simulaciones. Validación manual de estos cambios dentro de Forever pendiente.
+- El usuario confirmó que con rango Dev puede ver Miembros y Permisos tras la instalación anterior; otros escenarios de permisos siguen pendientes de validación.
+
+## Ampliación local instalada para pruebas: rango Dev — 25/11/2026
+
+- Comprobado mediante lectura de SavedVariables: Tartaro-pty guarda grants[8].name = "Dev"; Tartaro-camwowus2realm8pvp guarda "Addon" en ese índice. Son datos persistidos, no una consulta en vivo del roster.
+- canManagePermissions conserva rangos 0/1 y añade únicamente rango 8 con rankName exactamente "Dev". El número sin el nombre no concede acceso. El rango/nombre actual se obtiene del roster mediante las APIs existentes al ejecutar el addon.
+- La política compartida cubre navegación/renderizadores/acciones de Miembros y Permisos, escritura local y recepción/reenvío de grants. No cambia canEditEvent ni A.can: no concede otros permisos automáticamente. Los clientes antiguos siguen con su política anterior hasta actualizarse.
+- Verificación: 19 módulos compilados con Lua 5.1 sin ejecutarlos; XML, caracteres, TOC/recursos y 40 archivos correctos; git diff --check correcto. Pendiente comprobación manual del acceso Dev y sincronización entre clientes actualizados. Instalación posterior autorizada y realizada: 40 archivos coincidentes por SHA256, sin archivos adicionales, sin interacción con WoW. Sin commit ni push. Core.lua instalado: 469530C8909BE59407129C2F272D75A883FE46788DAC6EC7DAC98A93243BAF52.
+
+## Corrección local en revisión: menú administrativo — 25/11/2026
+
+- Miembros y Permisos solo aparecen para rangos 0 y 1, reutilizando canManagePermissions. El navegador compacta las entradas visibles, bloquea clics no autorizados y revalida al refrescar. Los renderizadores y las acciones pendientes de filas de Miembros también comprueban acceso.
+- Cambio de rango/roster o permisos actualiza el menú incluso desde Opciones. Perder acceso con una sección administrativa abierta oculta inmediatamente sus filas y tooltip, pasa a Inicio y solicita refresco agrupado. No se crean permisos nuevos ni un bypass por debug; la identidad de desarrollador sigue sin estar definida.
+- Esta corrección no elimina el roster ni los grants utilizados por otras funciones y no modifica la retención o el transporte de informes. No se atribuye ahorro en MB sin medición. Cambios en main local 0.2.1, sin commit ni push; se conserva el trabajo previo. Por autorización posterior se instaló este filtro en Forever el 25/11/2026: 40 archivos coincidentes por SHA256, sin archivos adicionales y sin interacción con el cliente. Validación dentro de WoW pendiente.
+- Verificación estática y criterios manuales en la bitácora; pendiente revisión en Forever con rangos permitidos/no permitidos y cambio de rango en vivo.
+
+## Trabajo local posterior: anclaje y datos de addons — 25/11/2026
+
+- Base local main/07155cd, 0.2.1 instalada previamente para pruebas. El anclaje opcional ya fue instalado para pruebas sin commit ni push. El usuario autoriza ahora reinstalar todos los archivos desde la carpeta ausente, incluyendo la detección de Overlord y versiones. Los cambios siguen sin commit ni push; la copia y sus hashes se registran en el resumen de sesión del workspace. Se conserva la versión 0.2.1.
+- Opciones incorpora «Mantener centro horizontal y crecer hacia abajo», desmarcada por defecto y persistida como centerWindowOnResize. Activada, conserva el centro del emblema en coordenadas de pantalla antes de redimensionar; crece horizontalmente en ambas direcciones y verticalmente hacia abajo. Respeta ajuste de escala, límites de pantalla y apilado de avisos. Al arrastrar se actualiza el origen sin bloquear el movimiento; al desactivar recupera el tipo de anclaje previo en la posición visible; Restablecer elimina la preferencia.
+- Verificación estática correcta: 19 Lua 5.1, XML/caracteres/TOC/recursos, 40 archivos instalables y 542 funciones instrumentadas. Pendiente comprobación visual en Forever de secciones, arrastre, escalas, avisos, bordes, persistencia de la casilla y desactivación. Sin ejecución del addon ni simulaciones.
+- Miembros incorpora columna Overlord y tooltip con versiones de ambos addons y fecha del informe. Distingue cargado, desactivado, instalado sin cargar, no instalado, sin datos e histórico. Los demás jugadores deben comunicar el dato mediante Tártaro compatible; sin informe no se afirma ausencia de Overlord. Miembros amplía su contenido a 690 y ventana a 892 para conservar columnas legibles; otras áreas mantienen sus tamaños.
+- El mensaje V conserva su primer campo de versión y añade estado/versión de Overlord; se valida formato y longitud. Se registra únicamente el informe del remitente validado contra la hermandad. Historial persistente en memberAddons; confirmación monotónica de esta sesión, caducidad de 150 segundos compartida con presencia y borrado de confirmación al observar desconexión/cambio de hermandad. UI detecta caducidad sin tráfico nuevo de consulta.
+- Anuncio silencioso automático al reconocer hermandad y al iniciar sesión/reload, repetición a los 5 segundos y renovación con request cada 60 segundos, además de replay existente. Sin temporizadores nuevos, sin entrada del jugador, sin mensaje visible en chat y sin depender del protocolo propio de Overlord. Nombres/clase/nivel/conexión siguen viniendo del roster y rol del intercambio existente. La entrega de mensajes no se garantiza si WoW bloquea el canal o la cola no puede enviarlos.
+- Verificación manual pendiente específica: dos personajes con cliente nuevo/anterior, Overlord cargado/desactivado/ausente, versiones y fechas, reload, reconexión, caducidad del informe aun recibiendo otros mensajes, orden, scroll y acciones. Sintaxis y comprobaciones estáticas correctas; no se ha ejecutado el addon ni el cliente.
+- Detalle y criterios: [bitácora](docs/MEJORAS-DISENO-MENU.md). La sección siguiente describe el commit e instalación anteriores.
+
 ## Entrega local para pruebas: 0.2.1 — 25/11/2026
 
 - Base actual: main/44aa65e (0.2.0), PR #15 integrado por el propietario remoto. Versión local de desarrollo 0.2.1 confirmada por el usuario el 25/11/2026. La rama anterior de mejoras fue eliminada por autorización expresa. Antes de esta entrega, la instalación contenía los 40 archivos de la base 0.2.0.

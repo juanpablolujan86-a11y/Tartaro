@@ -72,6 +72,7 @@ local function write(kind, operation, related, ...)
     return entry.sequence
 end
 function A.debugLog(kind, operation, ...) return write(kind,operation,nil,...) end
+function A.isDebugEnabled() return runtimeEnabled end
 local function finish(operation, sequence, ...)
     write("return",operation,sequence,...)
     return ...

@@ -225,28 +225,29 @@ end)
 
 A.listVisibleOrders = A.traceCallback("Orders.lua:226:A.listVisibleOrders", function()
     local active, completed = A.listOrders()
-    local visible = {}
+    local visible, summaries = {}, {}
     for _, order in ipairs(active) do
         local summary=A.orderOfferSummary(order.id)
         if order.owner == A.self or summary.own or (not summary.any and A.knowsRecipe(A.self, order.spell)) then
             visible[#visible + 1] = order
+            summaries[order.id] = summary
         end
     end
-    return visible, completed
+    return visible, completed, summaries
 end)
 
-A.requestOrders = A.traceCallback("Orders.lua:238:A.requestOrders", function()
+A.requestOrders = A.traceCallback("Orders.lua:239:A.requestOrders", function()
     local db = A.db
     if not db then return end
     for _, delay in ipairs({3, 18}) do
-        C_Timer.After(delay, A.traceCallback("Orders.lua:242:callback", function()
+        C_Timer.After(delay, A.traceCallback("Orders.lua:243:callback", function()
             if A.db == db then A.send("AQ") end
         end))
     end
     A.syncOrders()
 end)
 
-A.syncOrders = A.traceCallback("Orders.lua:249:A.syncOrders", function()
+A.syncOrders = A.traceCallback("Orders.lua:250:A.syncOrders", function()
     if not A.db or pending then return end
     pending, cursor, heard, syncAt = {}, 1, {}, GetTime() + math.random(1, 10)
     for id, order in pairs(A.db.orders) do
@@ -282,10 +283,10 @@ A.syncOrders = A.traceCallback("Orders.lua:249:A.syncOrders", function()
     end
 end)
 
-A.purgeOrderState = A.traceCallback("Orders.lua:285:A.purgeOrderState", function()
+A.purgeOrderState = A.traceCallback("Orders.lua:286:A.purgeOrderState", function()
     if not A.db then return 0 end
     local now, removed = GetServerTime(), 0
-    local expired; expired = A.traceCallback("Orders.lua:288:expired", function(id)
+    local expired; expired = A.traceCallback("Orders.lua:289:expired", function(id)
         local stamp = type(id) == "string" and id:match(":(%d+)$")
         return stamp and math.floor(tonumber(stamp) / 100) + orderLifetime <= now
     end)
@@ -302,7 +303,7 @@ A.purgeOrderState = A.traceCallback("Orders.lua:285:A.purgeOrderState", function
     return removed
 end)
 
-C_Timer.NewTicker(0.7, A.traceCallback("Orders.lua:305:callback", function()
+C_Timer.NewTicker(0.7, A.traceCallback("Orders.lua:306:callback", function()
     if not pending or GetTime() < syncAt then return end
     local packet = pending[cursor]
     while packet do
@@ -317,10 +318,14 @@ C_Timer.NewTicker(0.7, A.traceCallback("Orders.lua:305:callback", function()
                 break
             end
         end
+        pending[cursor] = nil
         cursor = cursor + 1
         packet = pending[cursor]
     end
     if not packet then pending, heard = nil, nil; return end
-    if A.sendProfessionPart(unpack(packet)) then cursor = cursor + 1 end
+    if A.sendProfessionPart(unpack(packet)) then
+        pending[cursor] = nil
+        cursor = cursor + 1
+    end
 end))
 if A.traceLoad then A.traceLoad("module.end", "Orders.lua") end
