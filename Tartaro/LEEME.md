@@ -1,4 +1,4 @@
-# Tártaro 0.2.1 para WoW: Forever
+# Tártaro 0.2.2 para WoW: Forever
 
 ## Consolidación para revisión — 26/11/2026
 

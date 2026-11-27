@@ -1,5 +1,9 @@
 # Cambios
 
+## 0.2.2
+
+Nueva numeración para el paquete de CurseForge. Conserva las funciones y correcciones de la versión 0.2.1.
+
 ## 0.2.1 — integración
 
 El llamado se puede lanzar antes de liberar espíritu. Se bloquea como fantasma tanto al abrir como al confirmar.
