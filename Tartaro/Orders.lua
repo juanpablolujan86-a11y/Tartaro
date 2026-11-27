@@ -1,7 +1,7 @@
 local _, A = ...
 if A.traceLoad then A.traceLoad("module.begin", "Orders.lua") end
 local orderLifetime = 7 * 86400
-local pending, cursor, heard, syncAt
+local pending, cursor, heard, syncAt, requestedAt
 local previews, pendingOffers
 
 local integer; integer = A.traceCallback("Orders.lua:7:integer", function(value, min, max)
@@ -31,7 +31,7 @@ local previewPacket; previewPacket = A.traceCallback("Orders.lua:29:previewPacke
 end)
 
 A.resetOrders = A.traceCallback("Orders.lua:33:A.resetOrders", function()
-    pending, cursor, heard, syncAt = nil, nil, nil, nil
+    pending, cursor, heard, syncAt, requestedAt = nil, nil, nil, nil, nil
     previews, pendingOffers = {}, {}
     if not A.db then return end
     A.db.orders, A.db.offers = A.db.orders or {}, A.db.offers or {}
@@ -117,14 +117,14 @@ A.receiveOrder = A.traceCallback("Orders.lua:108:A.receiveOrder", function(actio
             spell = spell, item = item, quantity = quantity, materials = f == "1", name = A.clean(g)}
         if order.name == "" then return end
         if action == "OX" then
-            if b ~= "1" or owner == A.self or owner == member.id then return end
+            if b ~= "1" or owner == member.id or owner == A.self and old then return end
             order.closed, order.completed = true, completed
             A.db.orderCopyClosed[a] = order
             previews[a] = nil
             A.invalidate("orders")
             return
         elseif action == "OC" then
-            if b ~= "0" or owner == A.self or owner == member.id or A.db.orderCopyClosed[a] then return end
+            if b ~= "0" or owner == member.id or A.db.orderCopyClosed[a] then return end
             if heard then heard[table.concat(previewPacket(order), "\t")] = true end
             if old or previews[a] then return end
             order.unverified, order.sharedBy = true, member.id
@@ -171,24 +171,38 @@ A.createOrder = A.traceCallback("Orders.lua:153:A.createOrder", function(recipe,
 end)
 
 A.closeOrder = A.traceCallback("Orders.lua:173:A.closeOrder", function(order, completed)
-    if not A.db or A.db.orders[order.id] ~= order or order.owner ~= A.self or order.closed or not orderOwner(order.id) then return end
+    if not A.db or not order or (A.db.orders[order.id] or previews[order.id]) ~= order
+        or order.owner ~= A.self or order.closed or not orderOwner(order.id) then return end
+    if completed and order.unverified then return nil, "Primero recuperá el pedido para poder completarlo." end
     if not A.send(unpack(orderPacket(order, true, completed))) then return end
+    order.unverified, order.sharedBy = nil, nil
     return applyOrder(order, true, completed == true)
 end)
 
-A.canCraftOrder = A.traceCallback("Orders.lua:179:A.canCraftOrder", function(order)
-    return A.db and order and not order.closed and not (order.unverified and A.db.orderCopyClosed[order.id])
+A.restoreOrder = A.traceCallback("Orders.restoreOrder", function(order)
+    if not A.db or not order or order.owner ~= A.self or not order.unverified
+        or previews[order.id] ~= order or A.db.orders[order.id] or A.db.orderCopyClosed[order.id]
+        or not orderOwner(order.id) then
+        return nil, "La copia del pedido ya no está disponible para recuperar."
+    end
+    if not A.send(unpack(orderPacket(order))) then return nil, "No se pudo recuperar el pedido. Volvé a intentar." end
+    order.unverified, order.sharedBy = nil, nil
+    return applyOrder(order, false, false)
+end)
+
+A.canCraftOrder = A.traceCallback("Orders.lua:193:A.canCraftOrder", function(order)
+    return A.db and order and orderOwner(order.id) and not order.closed and not (order.unverified and A.db.orderCopyClosed[order.id])
         and A.knowsRecipe(A.self, order.spell)
 end)
 
-A.offerOrder = A.traceCallback("Orders.lua:184:A.offerOrder", function(order)
+A.offerOrder = A.traceCallback("Orders.lua:198:A.offerOrder", function(order)
     if not A.db or (A.db.orders[order.id] or previews[order.id]) ~= order or order.closed or order.owner == A.self
         or not orderOwner(order.id) or not A.canCraftOrder(order) or not A.send("OF", order.id) then return end
     A.receiveOrder("OF", A.me, order.id)
     return true
 end)
 
-A.listOrders = A.traceCallback("Orders.lua:191:A.listOrders", function()
+A.listOrders = A.traceCallback("Orders.lua:205:A.listOrders", function()
     local active, completed = {}, {}
     for _, order in pairs(A.db.orders) do
         if orderOwner(order.id) then
@@ -202,7 +216,7 @@ A.listOrders = A.traceCallback("Orders.lua:191:A.listOrders", function()
     for id, order in pairs(previews) do
         if orderOwner(id) and not A.db.orderCopyClosed[id] and not A.db.orders[id] then active[#active + 1] = order end
     end
-    local newest; newest = A.traceCallback("Orders.lua:205:newest", function(left, right)
+    local newest; newest = A.traceCallback("Orders.lua:219:newest", function(left, right)
         return left.created > right.created or left.created == right.created and left.id > right.id
     end)
     table.sort(active, newest)
@@ -210,7 +224,7 @@ A.listOrders = A.traceCallback("Orders.lua:191:A.listOrders", function()
     return active, completed
 end)
 
-A.orderOfferSummary = A.traceCallback("Orders.lua:213:A.orderOfferSummary", function(id)
+A.orderOfferSummary = A.traceCallback("Orders.lua:227:A.orderOfferSummary", function(id)
     local offers=A.db and A.db.offers[id] or {}
     local result={members={},own=not not offers[A.self],any=false}
     for crafter,offered in pairs(offers) do
@@ -223,7 +237,7 @@ A.orderOfferSummary = A.traceCallback("Orders.lua:213:A.orderOfferSummary", func
     return result
 end)
 
-A.listVisibleOrders = A.traceCallback("Orders.lua:226:A.listVisibleOrders", function()
+A.listVisibleOrders = A.traceCallback("Orders.lua:240:A.listVisibleOrders", function()
     local active, completed = A.listOrders()
     local visible, summaries = {}, {}
     for _, order in ipairs(active) do
@@ -236,18 +250,19 @@ A.listVisibleOrders = A.traceCallback("Orders.lua:226:A.listVisibleOrders", func
     return visible, completed, summaries
 end)
 
-A.requestOrders = A.traceCallback("Orders.lua:239:A.requestOrders", function()
+A.requestOrders = A.traceCallback("Orders.lua:253:A.requestOrders", function()
     local db = A.db
     if not db then return end
+    requestedAt = GetTime()
     for _, delay in ipairs({3, 18}) do
-        C_Timer.After(delay, A.traceCallback("Orders.lua:243:callback", function()
-            if A.db == db then A.send("AQ") end
+        C_Timer.After(delay, A.traceCallback("Orders.lua:258:callback", function()
+            if A.db == db and A.send("AQ") then requestedAt = GetTime() end
         end))
     end
     A.syncOrders()
 end)
 
-A.syncOrders = A.traceCallback("Orders.lua:250:A.syncOrders", function()
+A.syncOrders = A.traceCallback("Orders.lua:265:A.syncOrders", function()
     if not A.db or pending then return end
     pending, cursor, heard, syncAt = {}, 1, {}, GetTime() + math.random(1, 10)
     for id, order in pairs(A.db.orders) do
@@ -264,12 +279,12 @@ A.syncOrders = A.traceCallback("Orders.lua:250:A.syncOrders", function()
         end
     end
     for id, order in pairs(previews) do
-        if not A.db.orders[id] and not A.db.orderCopyClosed[id] and orderOwner(id) then
+        if order.owner ~= A.self and not A.db.orders[id] and not A.db.orderCopyClosed[id] and orderOwner(id) then
             pending[#pending + 1] = previewPacket(order)
         end
     end
     for id, order in pairs(A.db.orderCopyClosed) do
-        if type(order) == "table" and not A.db.orders[id] and orderOwner(id) then
+        if type(order) == "table" and order.owner ~= A.self and not A.db.orders[id] and orderOwner(id) then
             local packet = orderPacket(order)
             packet[1] = "OX"
             pending[#pending + 1] = packet
@@ -283,10 +298,10 @@ A.syncOrders = A.traceCallback("Orders.lua:250:A.syncOrders", function()
     end
 end)
 
-A.purgeOrderState = A.traceCallback("Orders.lua:286:A.purgeOrderState", function()
+A.purgeOrderState = A.traceCallback("Orders.lua:301:A.purgeOrderState", function()
     if not A.db then return 0 end
     local now, removed = GetServerTime(), 0
-    local expired; expired = A.traceCallback("Orders.lua:289:expired", function(id)
+    local expired; expired = A.traceCallback("Orders.lua:304:expired", function(id)
         local stamp = type(id) == "string" and id:match(":(%d+)$")
         return stamp and math.floor(tonumber(stamp) / 100) + orderLifetime <= now
     end)
@@ -303,7 +318,11 @@ A.purgeOrderState = A.traceCallback("Orders.lua:286:A.purgeOrderState", function
     return removed
 end)
 
-C_Timer.NewTicker(0.7, A.traceCallback("Orders.lua:306:callback", function()
+C_Timer.NewTicker(0.7, A.traceCallback("Orders.lua:321:callback", function()
+    if not A.db then return end
+    if not requestedAt or GetTime() - requestedAt >= 60 then
+        if A.send("AQ") then requestedAt = GetTime() end
+    end
     if not pending or GetTime() < syncAt then return end
     local packet = pending[cursor]
     while packet do

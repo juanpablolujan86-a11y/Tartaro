@@ -727,3 +727,111 @@ Instalación posterior autorizada — 26/11/2026: la implementación local de ll
 
 
 Consolidación posterior autorizada — 26/11/2026: nuevo commit local sobre 84baf3c, conservando 0.2.1 e incluyendo implementación, límites, verificación estática y evidencia de instalación anteriores. El usuario autorizó posteriormente publicarlo en la rama del PR #16 si continúa abierto, con actualización descriptiva y sin merge ni auto-merge. Se comprobó abierto y sin integrar antes de operar. Sin nueva instalación. El commit que contiene esta anotación identifica la entrega. Las pruebas dentro de Forever siguen pendientes.
+
+
+## Banner de la Horda — 26/11/2026
+
+**Historial del primer intento:** el usuario rechazó el marco reducido y reportó «Opciones» fuera de la ventana en la captura posterior. La corrección vigente se describe al final de esta sección; las dimensiones y atlas del primer intento siguientes no describen el diseño corregido.
+
+El usuario aportó referencias de un estandarte rojo con emblema lateral y marco superior de la Horda y confirmó expresamente conservar la calavera. Implementación independiente en UI.lua sobre 2e89fa8: calavera intacta (142 x 145, anclada al mismo punto), ornamento superior nativo debajo de ella y banner rojo con «Tartaro»/«For The Horde!» centrados. Los recursos se identificaron leyendo Overlord/UIShared.lua y GroupFinderUI.lua instalados; no se copian funciones, archivos ni se añade dependencia de Overlord.
+
+Diseño: marco metálico de facción sobre tela roja, emblema lateral proporcionado y dos líneas en fuentes nativas GameFontNormalHuge/GameFontNormalLarge. Paleta de alternativa: rojo profundo #3D0405, sombra #1F0203, borde dorado #A87530, título #FFD147 y lema #FFDEA6. La calavera sigue siendo el elemento principal y la referencia de posición/crecimiento de la ventana.
+
+Recursos del cliente: C_Texture.GetAtlasInfo para HordeScenario-TitleBG (parte superior con proporción conservada, ancho máximo 300 y alto máximo 52) y archivo compartido referenciado por AllianceScenario-TitleBG (contiene también la tela roja de Horda). La tela se separa en emblema y tramo plano: el tramo se estira con el ancho de la ventana y el emblema mantiene su proporción. Si no hay atlas, se mantiene fondo rojo y emblema nativo Interface/Timer/Horde-Logo; no se inventa una ruta de textura propia ni se aborta la carga por atlas ausente. Las dos consultas usan debugPcall.
+
+El banner ocupa 64 px, con margen lateral de 16 px, debajo del ornamento y separado del contenido. La reserva de cabecera aumenta de 132 a 194; anclajes del menú, tablas, opciones, calendario, recetas y tamaño total siguen usando la variable compartida headerHeight. El código se construye una vez, sin eventos adicionales, callbacks, animaciones o timers. No cambia drag, persistencia, llamados, permisos o datos de negocio. No hay nuevos archivos gráficos distribuidos.
+
+Verificación estática: 19 módulos compilados con LuaJIT compatible Lua 5.1, XML, TOC/40 archivos, caracteres, etiquetas de línea, trazabilidad y diff --check. 565 funciones instrumentadas y 26 llamadas protegidas. Sin ejecutar el addon, simulaciones o interacción con WoW. Pendiente validar visualmente la disponibilidad/recorte de los atlas en Forever y la composición: sin colisión de calavera, marco, títulos o botón de cierre; ancho mínimo, calendario, opciones, cambio de tamaño y límites de pantalla. No se presenta como un resultado visual comprobado.
+
+Cambios locales sin commit, push, modificación del PR #16 o instalación; versión conservada 0.2.1.
+
+
+Instalación posterior autorizada del banner — 26/11/2026: Tartaro 0.2.1 con cambios locales posteriores a 2e89fa8 copiado en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`. Verificados 40 archivos coincidentes por SHA256, sin extras, borrados, respaldos o ZIP. UI.lua: `8D302592FCBC498CA74B63332F8CBC813990E8518D5AD681DFF5726D6FE0E97B`. Sin commit, push, cambio al PR o interacción con el cliente. Pendiente revisión visual y funcional por el usuario.
+
+
+### Corrección del marco y del menú — 26/11/2026
+
+Captura aportada por el usuario: el recorte de HordeScenario-TitleBG quedó como adorno pequeño bajo la calavera; no correspondía al marco superior solicitado. La cabecera ampliada de 194 desplazó el navegador sin aumentar la altura fija de Inicio (497), dejando Opciones fuera. No se hizo commit o actualización del PR antes de la interrupción; HEAD sigue en 2e89fa8.
+
+Corrección local: sustituir el adorno por el atlas perks-theme-hordevsalliance-tp-topbig identificado en el código instalado de Overlord. Se utiliza solo el lado Horda y su reflejo: seis texturas para dos extremos, dos mitades centrales y dos tramos planos. Los extremos y el centro mantienen proporción; solo los tramos planos se anclan por ambos bordes para ajustarse al ancho. Calavera en capa superior sin cambio de posición, tamaño, límites o referencia de persistencia. El marco se coloca sobre el borde superior de la ventana, sin un segundo adorno pequeño debajo de la calavera.
+
+Restaurar headerHeight a 132, banner a 56 px con top en -70 y emblema proporcionado; título y lema centrados en dos líneas. La altura mínima del navegador se calcula como headerHeight + 16 + entradasVisibles*32 + 14. El redimensionado de las vistas incluye ese mínimo, y cambios de ese valor invalidan el layout. Esto cubre tanto la disposición actual como cambios de disponibilidad del menú. Sin nuevos eventos, timers o dependencias.
+
+Verificación estática: compilación de los 19 Lua con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres, etiquetas, 565 funciones/26 llamadas protegidas y diff --check. Cálculo de márgenes de navegación para 8 y 10 entradas; no equivale a render dentro del cliente. Pendiente comprobar marco, calavera, textos, mínimos/máximos de ancho, navegación completa y escalas dentro de Forever. Corrección aún sin instalar, commit, push o modificación del PR.
+
+
+## Eventos, pedidos y recuperación — 26/11/2026
+
+Autorización del usuario para resolver eliminación de eventos, vencimiento/cancelación de pedidos y recuperación desde otro miembro, incluyendo la corrección de diseño pendiente. Código modificado: UI.lua y Orders.lua; correcciones de banner/menú previas conservadas. Sin nueva instalación, commit, push o modificación del PR.
+
+### Eventos de Calendario
+
+Las tarjetas futuras y vencidas incluyen Eliminar evento para quien cumple A.canEditEvent (autor o rangos 0/1). Se comparte la confirmación con el editor mediante win.ConfirmDeleteEvent, sin abrir el editor para borrar desde tarjeta. La aceptación comprueba la misma A.db y revisión del evento; si cambió o desapareció exige nueva confirmación. A.deleteEvent conserva validación de permiso y emisión K con registro de eliminación, borrado de inscripciones/recordatorios y recuperación de cierres existente. Se cierra el editor solo si correspondía al evento eliminado. Los eventos vencidos mantienen participantes e inscripciones en solo lectura; el borrado autorizado es la única acción nueva.
+
+### Pedidos y caducidad
+
+La caducidad existente es siete días desde la fecha codificada en el ID, sin renovarse al recibir, recuperar o cerrar. orderOwner se usa en recepción, listados y acciones; ahora también en canCraftOrder para no dar por fabricable un pedido vencido al consultar esa capacidad. La limpieza existente purga pedidos, copias, cierres y ofertas; el refresco por vencimientos existente sigue retirando tarjetas. No se crea una segunda regla temporal. El vencimiento visual puede esperar al siguiente refresco existente y la limpieza física a su ticker de 60 segundos.
+
+Las tarjetas propias muestran las acciones una debajo de otra: Recuperar pedido para copia no confirmada o Marcar como completado para pedido autoritativo, y Cancelar pedido en ambos casos. Solo su propietario puede efectuar estas operaciones; se comprueban identidad del objeto en el estado vigente, ID válido y vigencia. Una copia no confirmada no puede completarse sin recuperarla antes. Cancelar una copia propia emite el cierre OR con el mismo ID desde el verdadero propietario y guarda el cierre; recuperar emite OR abierto y conserva ID, fecha, contenido y ofertas disponibles. Un fallo al encolar no promueve ni cancela el candidato local.
+
+### Recuperación y sincronización
+
+Antes OC rechazaba owner==A.self, impidiendo recibir copias de un pedido propio perdido. Ahora esas copias se conservan en orderPreviews con unverified/sharedBy y se muestran al propietario como pendientes de recuperar o cancelar. No se convierten automáticamente en pedidos activos autoritativos, no se retransmiten desde el autor como OC y no se amplía la facultad de terceros de publicar OR: su remitente sigue debiendo coincidir con el propietario del ID.
+
+OX de terceros puede retirar un candidato propio no confirmado y conservar marca orderCopyClosed para impedir que una OC abierta vieja lo haga reaparecer. Si existe un pedido propio autoritativo, OX ajeno no lo modifica. La marca de tercero no se transforma automáticamente en OR de cierre emitido por el propietario. Otros flujos de copias/cierres se conservan. La recuperación se rechaza si existe cierre conocido, registro autoritativo o vencimiento; no se generan un ID nuevo o una semana nueva.
+
+Se mantiene el arranque AQ a 3/18 segundos y se agrega solicitud cada 60 segundos desde el ticker de pedidos ya existente. requestedAt se reinicia con el contexto y solo avanza al encolar AQ, salvo el establecimiento inicial de espera. Respuestas conservan jitter, cola y ritmo existentes. No hay nuevo protocolo, SavedVariables o timer; sí mayor tráfico de consulta/respuestas, cuyo costo con varios clientes no se ha medido. No se garantiza recibir una copia en 60 segundos: depende de disponibilidad del compañero, estado conservado, colas y entrega real. Pedidos vencidos o no conservados por ningún cliente no se pueden recuperar con este mecanismo.
+
+Se contrastaron las funciones orderPacket/previewPacket con la base 0.2.0 del commit 44aa65e: campos OR/OC conservados. Esto verifica compatibilidad de formato de ese código, no la versión real o entrega del cliente del compañero. No se atribuye la pérdida de datos al borrado de Interface/AddOns: no se inspeccionó ni modificó su historial de SavedVariables.
+
+### Diseño incluido y verificación
+
+Se conserva la corrección de marco/banner y mínimo de altura del menú descrita en la sección anterior. Los botones de pedidos dejan de compartir una fila con ancho residual: se apilan usando el mismo constructor de botones y tarjetas existentes.
+
+Comprobaciones estáticas: 19 Lua compilados con LuaJIT compatible Lua 5.1, XML, TOC/40 archivos, caracteres, etiquetas de línea, llamadas y diff --check. Cobertura estructural: 570 funciones instrumentadas y 26 llamadas protegidas. Se revisaron las rutas de OC propio, confirmación/cancelación OR, OX previo/posterior y vencimiento; no se ejecutaron simulaciones, APIs de WoW o el cliente. No se declara validación E2E ni ausencia universal de errores.
+
+Criterios manuales pendientes:
+
+1. Evento futuro y vencido: autor y rangos 0/1 ven Eliminar evento; otro miembro no. Cancelar confirmación conserva el evento; aceptar retira evento e inscritos localmente y en otro cliente. Cambiar rango/contexto/revisión antes de aceptar debe impedir la acción anterior. Unirse/modificar inscripción de vencido sigue bloqueado.
+2. Pedido propio normal: Cancelar pedido visible dentro de tarjeta estrecha y desaparece al cerrar; otro cliente recibe el cierre. No cancelar pedidos ajenos. Conservación de completados y filtros existentes.
+3. Copia propia vigente guardada por el segundo cliente: recibirla como pendiente, sin republicación automática; Recuperar conserva ID/fecha y Cancelar emite cierre del mismo ID. No borrar datos para fabricar el caso sin autorización.
+4. Cierre conocido seguido de copia abierta atrasada: no reaparece el candidato; OX ajeno no cierra un pedido propio autoritativo. Replay/reload no reabre un cancelado conservado.
+5. Pedido con más de siete días: rechazo en recepción, ausencia en lista, acción impedida y limpieza posterior. No cambiar reloj del cliente ni alterar fechas de SavedVariables para la prueba sin autorización.
+6. Cliente que entra después de las consultas iniciales y mensajes perdidos: comprobar recuperación en consultas posteriores; comparar mismo ID/estado en ambos extremos y revisar logs con debug activado. Sin medición o garantía de latencia aún.
+7. Marco, calavera, banner y menú: ancho mínimo/calendario/opciones, rangos con 8 y 10 entradas, escalas y límites de pantalla. Revisión visual real pendiente.
+
+
+Instalación posterior autorizada de diseño, eventos y pedidos — 26/11/2026: Tartaro 0.2.1 con cambios locales posteriores a 2e89fa8 copiado en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`. Los 40 archivos coinciden por SHA256; sin extras, borrados, respaldos o ZIP. UI.lua: `59AEBDA138DB2A7C1B612BB642103D08DE683938E7FE9077819A6E5BFBAE057E`. Orders.lua: `97536A8B6C5DD4E5A7904F45CBD41C95843FFA9E70630E62ED248126C9D87459`. Sin commit, push, modificación del PR o interacción con WoW. Pendiente validación visual y de sincronización por el usuario.
+
+
+## Cobertura interior del banner — 26/11/2026
+
+El usuario aprobó el marco y los textos de la captura instalada, y señaló la franja vacía entre marco y estandarte. Ajuste limitado a la presentación: el rojo ocupa todo el interior de la cabecera (132 px con 2 px de margen en cada borde, 128 px de altura), sin un recuadro inferior separado. El emblema lateral crece con esa altura y conserva la proporción 90/69 de la tela nativa; el tramo plano ocupa el resto del ancho.
+
+Banner, tela y emblema son texturas BACKGROUND de win (subniveles 2/3/4), detrás del marco ARTWORK -1 y de la calavera ARTWORK. Se elimina el frame hijo del banner para que el fondo ampliado no tape la parte inferior de la calavera. No cambia el marco segmentado, su ancho, proporción ni posición. Título: posición efectiva izquierda 96 y top -77; lema: izquierda 96 y bottom -120 respecto del borde superior. Son las mismas coordenadas del diseño aprobado por el usuario. No cambia headerHeight=132, menú ni lógica de negocio.
+
+Verificación estática: compilación de 19 módulos con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres, etiquetas, conteos 570/26 y diff. Comprobación aritmética de anclajes para conservar textos, y revisión de capas sin ejecutar el cliente. Pendiente confirmar visualmente el resultado en Forever. Sin instalar, commit, push o actualizar PR por este ajuste.
+
+
+Instalación posterior autorizada del fondo completo — 26/11/2026: Tartaro 0.2.1 local posterior a 2e89fa8 copiado en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`, incluyendo eventos/pedidos. Los 40 archivos coinciden por SHA256, sin extras, borrados, respaldos o ZIP. UI.lua: `2D5976616CF009222D1BDC2A4FA2855DED5B9D7614394B9F998FAFBF966D0EEF`. Sin commit, push, actualización del PR o interacción con WoW. Pendiente revisión visual y funcional por el usuario.
+
+
+## Día actual del calendario — 26/11/2026
+
+El usuario solicita distinguir hoy más allá del color del número. Calendar.Display conserva todayKey mediante Calendar.dayKey(GetServerTime()), selección y eventos existentes. Tras aplicar SetStyle, para hoy establece borde dorado y fondo ámbar, con etiqueta HOY en la esquina superior derecha; número permanece a la izquierda y los eventos comienzan más abajo. El fondo es más claro cuando hoy también está seleccionado. El resto de días conserva el estilo anterior, incluido el seleccionado en cobre.
+
+La etiqueta se crea bajo demanda en la celda que la necesita; al reutilizar celdas se oculta si no corresponde a hoy. SetStyle reaplicado elimina borde/fondo anteriores cuando cambia la fecha o el mes. No se añaden callbacks, eventos, timers, animaciones o dependencias, ni se altera fecha local o selección. El calendario continúa usando sus refrescos existentes.
+
+Verificación estática: 19 Lua compilados con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres, etiquetas de línea, conteos 570/26 y diff --check. Pendiente comprobar visualmente hoy seleccionado y sin seleccionar, otro día seleccionado, cambio de mes y cambio de día local. No se ejecutó el addon. Versión 0.2.1; sin instalación, commit, push o actualización del PR por este ajuste.
+
+
+Instalación posterior autorizada de resaltado de HOY — 26/11/2026: Tartaro 0.2.1 local posterior a 2e89fa8 copiado en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`, con todos los cambios locales previos. Los 40 archivos coinciden por SHA256; sin extras, borrados, respaldos o ZIP. Calendar.lua: `1E8914C484C02F5ACE505FA2C1D91DCE17CBEBD4754A2801A57C22B9D648F4B9`. Sin commit, push, cambio del PR o interacción con WoW. Pendiente revisión visual y funcional del usuario.
+
+
+## Consolidación de banner, calendario, eventos y pedidos — 26/11/2026
+
+Autorizado un nuevo commit local sobre 2e89fa8, versión 0.2.1. Reúne el marco Horda definitivo de ancho completo, calavera conservada, fondo rojo/emblema cubriendo la cabecera y textos aprobados; mínimo de altura del navegador; botón de eliminar desde tarjetas de eventos futuros/vencidos; cancelación y recuperación explícita de pedidos propios, vigencia original y AQ periódico; borde/fondo/etiqueta HOY del calendario. Los apartados anteriores preservan evidencia y límites de cada cambio, incluidos intentos visuales rechazados y sus correcciones.
+
+Instalación final previa autorizada y verificada con 40 SHA256 coincidentes, sin operar el cliente. Esta consolidación actualiza documentación y no reinstala. Compilación estática de 19 Lua con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres, etiquetas, conteos 570/26 y diff. Pruebas visuales finales, permisos, cancelación/eliminación recibidas y sincronización real entre dos clientes siguen pendientes; no se declaran cerradas.
+
+PR #16 comprobado abierto y sin integrar; el usuario autoriza publicar este nuevo commit en su rama y actualizar la descripción. Sin reescritura del historial, merge, auto-merge, release o ZIP. Los estados anteriores «sin commit/push/instalación» son históricos de las entregas, no restricciones posteriores a esta autorización. El commit que contiene esta anotación identifica la consolidación.

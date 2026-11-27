@@ -128,8 +128,19 @@ Calendar.create = A.traceCallback("Calendar.lua:47:Calendar.create", function(pa
             cell:ClearAllPoints(); cell:SetPoint("TOPLEFT",(index-1)%7*(cw+4),-60-math.floor((index-1)/7)*(ch+4)); cell:SetSize(cw,ch)
             cell.day=day.key; cell.number:SetText(day.day)
             cell.number:SetTextColor(day.key == todayKey and 1 or day.current and 0.96 or 0.55,day.key == todayKey and 0.72 or day.current and 0.9 or 0.52,day.current and 0.82 or 0.5)
-            cell:SetStyle(self.selectedDay == day.key)
-            local selectDay; selectDay = A.traceCallback("Calendar.lua:132:selectDay", function()
+            local isToday, selected = day.key == todayKey, self.selectedDay == day.key
+            cell:SetStyle(selected)
+            if isToday then
+                cell:SetBackdropBorderColor(1, 0.78, 0.22, 1)
+                cell:SetBackdropColor(selected and 0.34 or 0.23, selected and 0.22 or 0.16, 0.07, 1)
+                if not cell.today then
+                    cell.today = text(cell, "HOY", "GameFontNormalSmall")
+                    cell.today:SetPoint("TOPRIGHT", -5, -3)
+                    cell.today:SetTextColor(1, 0.82, 0.28)
+                end
+            end
+            if cell.today then cell.today:SetShown(isToday) end
+            local selectDay; selectDay = A.traceCallback("Calendar.lua:143:selectDay", function()
                 if not fresh(context) or day.year < 1 or day.year > 9999 then return end
                 self.year,self.month,self.selectedDay=day.year,day.month,day.key
                 notify(nil)
@@ -147,8 +158,8 @@ Calendar.create = A.traceCallback("Calendar.lua:47:Calendar.create", function(pa
                 control:SetStyle(event.id == self.selectedId)
                 if event.when <= GetServerTime() then label:SetTextColor(0.65,0.62,0.58) end
                 control.eventId=event.id
-                control:SetScript("OnClick",A.traceCallback("Calendar.lua:150:callback", function() if fresh(context) then self:SelectEvent(event.id) end end))
-                control:SetScript("OnEnter",A.traceCallback("Calendar.lua:151:callback", function(owner)
+                control:SetScript("OnClick",A.traceCallback("Calendar.lua:161:callback", function() if fresh(context) then self:SelectEvent(event.id) end end))
+                control:SetScript("OnEnter",A.traceCallback("Calendar.lua:162:callback", function(owner)
                     if not fresh(context) or not self.events[event.id] then return end
                     local value=self.events[event.id]
                     GameTooltip:SetOwner(owner,"ANCHOR_RIGHT"); GameTooltip:SetText(value.title)
@@ -156,7 +167,7 @@ Calendar.create = A.traceCallback("Calendar.lua:47:Calendar.create", function(pa
                     if value.when <= GetServerTime() then GameTooltip:AddLine("Evento vencido · solo lectura") end
                     GameTooltip:Show()
                 end))
-                control:SetScript("OnLeave",A.traceCallback("Calendar.lua:159:callback", function() GameTooltip:Hide() end))
+                control:SetScript("OnLeave",A.traceCallback("Calendar.lua:170:callback", function() GameTooltip:Hide() end))
                 control:Show()
             end
             for i=math.min(slots,#list)+1,#cell.entries do cell.entries[i]:Hide() end

@@ -1,5 +1,15 @@
 # Tártaro 0.2.1 para WoW: Forever
 
+## Consolidación para revisión — 26/11/2026
+
+Este commit adicional sobre 2e89fa8 conserva 0.2.1 y reúne los ajustes locales de banner completo, menú, eliminación de eventos desde tarjeta, recuperación/cancelación de pedidos y resaltado de HOY. Autorizado actualizar PR #16 mientras siga abierto, sin merge ni auto-merge. Las secciones siguientes conservan el estado de entregas anteriores; sus referencias a falta de commit/publicación o instalación son históricas. La instalación previa final fue verificada por SHA256; la actualización documental de esta consolidación no se reinstala. Pruebas visuales finales y sincronización real siguen pendientes.
+
+## Cambios locales de eventos, pedidos y diseño — 26/11/2026
+
+Las tarjetas de eventos de Calendario permiten eliminar con confirmación al autor o rangos 0/1, incluidos los vencidos; sus inscripciones siguen en solo lectura. Las tarjetas de pedidos propios muestran Cancelar pedido y, para copias recuperadas de otro miembro, Recuperar pedido antes de poder completarlo. Las acciones se apilan para evitar recortes. Las copias no se republican automáticamente, conservan ID/fecha y desaparecen al cumplir siete días; una copia vencida no puede recuperarse. Se consulta AQ cada 60 segundos sobre el temporizador existente, sin garantía de entrega inmediata.
+
+También se corrige el primer banner rechazado: marco Horda de ancho completo, calavera conservada, cabecera de 132 px y altura mínima según entradas del menú. Estas correcciones están locales, pendientes de instalación y pruebas reales. La instalación previa del primer diseño no valida este resultado. Detalle y criterios: [bitácora](../docs/MEJORAS-DISENO-MENU.md#eventos-pedidos-y-recuperación--26112026). Sin commit, push o actualización del PR por estos cambios.
+
 ## Estado de esta entrega local — 26/11/2026
 
 La versión se mantiene en 0.2.1. El nuevo commit local consolida posición persistente de ventana, informes de Overlord/versiones, acceso administrativo y optimizaciones de memoria/CPU. El detalle técnico, los límites y los criterios pendientes están en [Cambios locales 0.2.1](../docs/CAMBIOS-LOCALES-0.2.1.md) y en el [plan de optimización](../docs/PLAN-OPTIMIZACION-MEMORIA-CPU.md). Los puntos 1, 3 y 8 siguen parciales; no hay publicación remota por esta entrega.

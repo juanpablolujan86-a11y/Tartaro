@@ -1,5 +1,36 @@
 # Cambios
 
+## 0.2.1 — consolidación para PR #16, 26/11/2026
+
+- Reunir marco y banner Horda de ancho completo, calavera conservada y fondo rojo con emblema cubriendo el header; mantener posición de textos aprobados y menú dentro de la ventana.
+- Añadir eliminación de eventos desde tarjetas con confirmación y permisos; acciones verticales de cancelación/recuperación de pedidos, fecha original y sincronización AQ periódica; resaltar HOY con borde, fondo y etiqueta.
+- Documentación y criterios de verificación incluidos. Versión 0.2.1 conservada; comprobaciones estáticas realizadas. Instalación previa con 40 archivos verificados; pruebas visuales finales y multicliente pendientes. Commit y actualización del PR autorizados, sin merge o auto-merge. Entradas siguientes conservan el historial de implementación.
+
+## 0.2.1 — ajuste local: resaltar hoy en el calendario
+
+- Añadir borde dorado, fondo ámbar y etiqueta HOY a la celda del día actual. Diferenciar cuando hoy también está seleccionado y conservar el estilo de selección de otros días.
+- Sin cambios de fecha local, selección o eventos; sin timers nuevos. Verificación estática realizada, revisión visual pendiente. Sin instalación o publicación por este ajuste.
+
+## 0.2.1 — ajuste local: fondo completo de cabecera
+
+- Extender tela roja y emblema a todo el interior del header, eliminando la franja vacía y el recuadro inferior. Conservar marco, calavera y posición efectiva de ambos textos.
+- Usar texturas de fondo del mismo frame para no tapar la calavera. Sin cambios de altura del menú, datos o sincronización. Pendiente instalación y revisión visual; sin commit o publicación por este ajuste.
+
+## 0.2.1 — cambios locales: eventos y recuperación de pedidos
+
+- Añadir Eliminar evento en tarjetas futuras y vencidas, con permisos y confirmación existentes; revalidar contexto/revisión antes de borrar. Inscripciones vencidas conservadas en solo lectura.
+- Mostrar Recuperar pedido en copias propias recibidas de otros miembros y Cancelar pedido en toda tarjeta propia activa, con acciones verticales. Confirmación del propietario requerida antes de republicar; conservar ID/fecha y cierre sincronizado.
+- Mantener vencimiento de siete días y comprobarlo también al consultar capacidad de fabricación. Conservar cierres compartidos para no reabrir candidatos y rechazar que terceros publiquen OR como autor.
+- Repetir AQ cada 60 segundos mediante el ticker existente, conservando inicio 3/18, formatos y cola; mayor tráfico pendiente de medición. Pruebas reales multicliente pendientes.
+- Incluye corrección local pendiente del marco de Horda y menú. Sin instalación, commit o publicación por estos cambios.
+
+## 0.2.1 — cambio local: banner de la Horda
+
+- Conservar la calavera y añadir debajo marco superior de la Horda, tela roja, emblema lateral y textos centrados «Tartaro»/«For The Horde!».
+- Corregir el primer intento rechazado: marco superior de ancho completo con extremos/centro proporcionados y tramos planos extensibles del lado Horda. Restaurar cabecera a 132 y asegurar altura mínima según entradas del menú para mantener Opciones dentro.
+- Usar recursos nativos directamente, sin dependencia de Overlord o imágenes nuevas; alternativa si faltan atlas, sin timers o cambios de negocio.
+- Primer intento instalado para pruebas y rechazado por el usuario. Corrección comprobada estáticamente, pendiente instalación y revisión visual. Sin commit o publicación por este cambio.
+
 ## 0.2.1 — commit local: llamado desde cadáver
 
 - Permitir preparar el llamado como fantasma usando exclusivamente coordenadas del cadáver y contexto de muerte observado en esta sesión; rechazar cuerpos de instancia, datos ausentes o cambios de estado/destino antes de enviar.

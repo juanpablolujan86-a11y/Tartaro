@@ -1,5 +1,48 @@
 # Estado de desarrollo de Tartaro
 
+## Consolidación para revisión del PR #16 — 26/11/2026
+
+- Autorizado un nuevo commit local sobre 2e89fa8, conservando 0.2.1: marco/banner Horda final con fondo completo, menú contenido, eliminación desde tarjetas de eventos, cancelación/recuperación de pedidos y resaltado de HOY. Incluye documentación, recursos referenciados, criterios y evidencias de instalación.
+- PR #16 comprobado abierto, sin integrar y sin auto-merge antes de consolidar. Autorizado publicar el nuevo commit en codex/tartaro-0.2.1-mejoras-optimizacion y actualizar la descripción para revisión; no hacer merge, auto-merge, release, ZIP o nueva instalación.
+- Verificación estática de 19 Lua con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres/etiquetas, cableado de acciones, formato OR/OC de la base 0.2.0, conteos 570/26 y diff. No equivale a ejecución real; siguen pendientes aceptación visual, pruebas de permisos/tiempos y sincronización entre clientes.
+- Las secciones siguientes y la bitácora conservan el historial de implementación/instalaciones, incluidos los estados anteriores «sin commit» o «pendiente instalar». La referencia de esta consolidación es el commit que contiene esta sección. El PR conserva todo el historial anterior.
+
+## Día actual del calendario — ajuste local, 26/11/2026
+
+- Instalación posterior autorizada: 40 archivos coincidentes por SHA256 en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`, incluido resaltado de HOY y cambios locales previos. Sin extras, borrados, respaldos, ZIP, commit, push o interacción con el cliente. Pendiente revisión visual; las menciones siguientes a instalación pendiente son anteriores a esta copia.
+
+- Calendar.lua resalta la celda de hoy con borde dorado, fondo ámbar y etiqueta HOY, además del número. Usa el todayKey local existente, sin cambiar selección, fechas, agrupación de eventos o hora local.
+- Si hoy está seleccionado, conserva borde/etiqueta y usa fondo más claro; otros días seleccionados conservan estilo cobre. Al cambiar de mes/día se reaplica estilo y se oculta etiqueta donde no corresponde. Etiqueta creada bajo demanda, sin timers nuevos.
+- Comprobaciones estáticas realizadas; revisión visual real pendiente. Versión 0.2.1 conservada; sin instalación, commit, push o modificación del PR por este ajuste.
+
+## Cobertura interior del banner — ajuste local, 26/11/2026
+
+- Instalación posterior autorizada y realizada: 40 archivos coincidentes por SHA256 en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`, con fondo completo y cambios de eventos/pedidos. Sin extras, borrados, respaldos, ZIP, commit, push o interacción con el cliente. Pendiente revisión visual y funcional. Las menciones siguientes a instalación pendiente describen el estado anterior a esta copia.
+
+- El usuario aprueba marco y textos de la captura instalada, pero solicita que la tela roja y el escudo cubran todo el interior de la cabecera. UI.lua extiende el fondo a 128 px dentro de headerHeight=132, con 2 px de margen exterior; elimina el recuadro inferior independiente.
+- Tela y emblema pasan a texturas BACKGROUND del mismo win, detrás de marco y calavera, evitando que un frame hijo oculte la calavera al cubrir su zona. El emblema conserva proporción; título/lema mantienen las mismas posiciones efectivas anteriores.
+- No se cambian marco superior, calavera, menú, altura total ni lógica de eventos/pedidos. Sin instalación, commit, push o actualización del PR por este ajuste. Pendiente validación visual del usuario; la instalación anterior aún tiene la franja reportada.
+
+## Eventos, pedidos y diseño — implementación local, 26/11/2026
+
+- Instalación posterior autorizada y realizada: 40 archivos coincidentes por SHA256 en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`, incluyendo diseño corregido, eventos y pedidos. Sin extras, borrados, respaldos o ZIP; sin commit, push o interacción con el cliente. Pruebas visuales y multicliente pendientes. Las referencias siguientes a instalación pendiente describen el estado previo a esta copia.
+
+- Tarjetas de eventos de Calendario, futuros y vencidos: Eliminar evento con confirmación compartida con el editor. Permisos existentes (autor/rangos 0/1), contexto y revisión revalidados; borrado K y marcas de eliminación existentes conservados. Las inscripciones vencidas continúan en solo lectura.
+- Tarjetas de pedidos propios: acciones verticales Recuperar pedido o Marcar como completado y Cancelar pedido, sin depender de un ancho restante estrecho. Copias propias recibidas de terceros se muestran sin republicar automáticamente; el propietario puede confirmar recuperación o cancelar.
+- Orders.lua conserva ID/fecha y caducidad de 7 días al recuperar/cancelar. Un cierre retransmitido bloquea una copia no confirmada; no cierra un pedido propio autoritativo. OR sigue exigiendo remitente propietario. Candidatos propios no se retransmiten como autoritativos antes de confirmación.
+- Solicitudes AQ repetidas cada 60 segundos usando ticker existente (y reintentos iniciales 3/18); sin nuevo timer o formato de paquete. Esto añade tráfico de consulta/respuesta y no garantiza entrega o latencia multicliente.
+- Incluye corrección pendiente del diseño: marco Horda de ancho completo, calavera conservada, cabecera original 132 y mínimo de altura del menú según entradas visibles. Continúa sin instalar esta corrección.
+- Verificación estática y compatibilidad de formato contra código 0.2.0 del commit 44aa65e; no constituye ejecución con el compañero. Criterios y límites en [bitácora](docs/MEJORAS-DISENO-MENU.md#eventos-pedidos-y-recuperación--26112026). Versión 0.2.1, cambios locales posteriores a 2e89fa8 sin commit, push o modificación del PR #16. Prueba real entre dos clientes pendiente.
+
+## Banner de la Horda — implementación local, 26/11/2026
+
+- Instalación posterior autorizada para pruebas: 40 archivos coincidentes por SHA256 en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`, sin extras. Pendiente revisión visual; sin commit, push o interacción con el cliente.
+
+- Autorizado conservar la calavera y añadir debajo un banner rojo con «Tartaro», «For The Horde!» y emblema de la Horda a la izquierda. Tras el fallo visual reportado por el usuario, marco superior de ancho completo con el lado Horda de perks-theme-hordevsalliance-tp-topbig: extremos/centro proporcionados y tramos planos extensibles. Calavera delante, posición/tamaño y referencia de persistencia conservados.
+- Se restaura la cabecera original de 132 px y el banner ocupa 56 px debajo de la calavera. La altura mínima de ventana incluye el número real de entradas visibles del menú y se reevalúa cuando cambia. Estandarte con recursos del cliente identificados en Overlord instalado, consultados directamente sin dependencia, copia de archivos o llamadas a Overlord.
+- Recursos consultados al construir la UI, sin timers/animaciones; alternativa roja y emblema nativo si no está disponible el atlas. Sin cambios de lógica, protocolo o versión (0.2.1).
+- Detalle: [bitácora](docs/MEJORAS-DISENO-MENU.md#banner-de-la-horda--26112026). Corrección posterior a captura: pendiente inspección visual e instalación de la corrección. La instalación registrada arriba corresponde al primer diseño rechazado. Commit y actualización del PR interrumpidos por el usuario antes de ejecutarlos; siguen pendientes.
+
 ## Llamado desde el cadáver — implementación local, 26/11/2026
 
 - Instalación posterior autorizada y realizada para pruebas: 40 archivos coincidentes por SHA256 en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`, sin extras ni interacción con el cliente. Sin commit/push; verificación funcional pendiente del usuario.
