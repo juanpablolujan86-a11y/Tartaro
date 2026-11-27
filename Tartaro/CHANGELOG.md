@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.2.1 — actualización del PR #16: bloquear posición del llamado
+
+- Añadir casilla en Opciones para impedir arrastre del botón Llamado a las Armas, conservando clic y tamaño. Desmarcada por defecto, persistente entre sesiones e incluida en Restablecer configuración.
+- Evitar que un intento de arrastre bloqueado abra el llamado. Ajustar altura de Opciones para contener nueva casilla y reset.
+- Verificación estática realizada e instalación previa comprobada con 40 SHA256 coincidentes. Nueva función enviada a QA del encargado mediante PR #16; sin merge o auto-merge. No se registra prueba real confirmada de esta casilla.
+
 ## 0.2.1 — consolidación para PR #16, 26/11/2026
 
 - Reunir marco y banner Horda de ancho completo, calavera conservada y fondo rojo con emblema cubriendo el header; mantener posición de textos aprobados y menú dentro de la ventana.

@@ -1,5 +1,16 @@
 # Estado de desarrollo de Tartaro
 
+## Bloquear posición del llamado — implementación local, 26/11/2026
+
+- Publicación posterior autorizada: PR #16 comprobado abierto y sin integrar. Consolidar en un nuevo commit sobre ae9caa9 y publicar en su rama con descripción actualizada para QA del encargado; sin merge, auto-merge o nueva instalación. Los estados siguientes «sin commit/push» conservan el historial previo.
+
+- Instalación posterior autorizada y realizada: 40 archivos coincidentes por SHA256 en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`, incluida la casilla de bloqueo. Sin extras, borrados, respaldos, ZIP, commit, push o interacción con el cliente. Pendiente prueba del usuario; las menciones siguientes a instalación pendiente son anteriores a esta copia.
+
+- Opciones añade «Bloquear posición del botón Llamado a las Armas», desmarcada por defecto. Persistencia en TartaroDB.callLauncherLocked; no cambia posición al activarla ni impide clic/tamaño. El arrastre bloqueado no dispara confirmación de llamado al soltar.
+- Setter compartido detiene/guarda un arrastre activo; OnDragStart consulta la preferencia guardada también después de reload. Restablecer configuración desbloquea y limpia preferencia/posición usando el flujo existente.
+- Opciones reserva 385 px y su vista calcula altura mínima para incluir casillas/restablecer sin salir del marco. Otras vistas conservan sus alturas. Sin nuevos timers/protocolo o cambios de permisos.
+- Comprobaciones estáticas; pendiente prueba de esta función en Forever por el usuario/QA. La confirmación previa del usuario no se extiende a este cambio nuevo. Versión 0.2.1; sin instalación, commit, push o modificación del PR #16 por esta implementación.
+
 ## Validación reportada y revisión del encargado — 26/11/2026
 
 - El usuario confirma que ya realizó las pruebas visuales y de funcionamiento de esta entrega. Es confirmación reportada por el propietario, sin ejecución independiente del agente; no se atribuyen escenarios concretos adicionales que no haya enumerado.

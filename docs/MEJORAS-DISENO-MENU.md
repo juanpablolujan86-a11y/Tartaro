@@ -842,3 +842,24 @@ PR #16 comprobado abierto y sin integrar; el usuario autoriza publicar este nuev
 Después de consolidar 4fb3eb3, el usuario confirma que ya hizo las pruebas visuales y de funcionamiento. Se registra como evidencia reportada por él, sin atribuir al agente ejecución dentro de WoW o inventar escenarios multicliente específicos. Las menciones anteriores a revisión visual pendiente describen el estado previo a esa confirmación, no una nueva aprobación exigida al usuario.
 
 El propósito del PR #16 es que el encargado realice QA antes de aprobar e integrar. Se solicita esa revisión con cambios, límites y criterios documentados; no se hace merge ni se activa auto-merge. Esta actualización documental no cambia el código, no instala y no implica que el QA del encargado ya haya terminado.
+
+
+## Bloquear posición del botón Llamado a las Armas — 26/11/2026
+
+Solicitud: fijar la ubicación elegida después de arrastrar el botón para evitar movimientos accidentales. Opciones incorpora casilla debajo de las preferencias de ventana. El valor TartaroDB.callLauncherLocked se considera activo solo si es true; nil/false conserva el comportamiento anterior y la casilla desmarcada. Se guarda mediante SavedVariables existente, sin protocolo o temporizadores nuevos.
+
+A.setCallLauncherLocked finaliza un arrastre activo mediante stopDrag antes de guardar la preferencia. Si no hay movimiento, no altera la posición guardada ni la escala. OnDragStart marca el gesto como arrastre y rechaza StartMoving si está bloqueado: soltar un arrastre bloqueado no se convierte en clic de llamado. Los clics normales siguen usando OnClick/confirmación y el control de tamaño continúa funcionando. OnDragStop y OnHide conservan la limpieza anterior. Restablecer configuración invoca el mismo setter para detener movimiento/desbloquear antes de limpiar preferencia y posiciones; la casilla se actualiza al reabrir/sincronizar Opciones.
+
+Para mantener el contenido dentro de la ventana, optionsPanel pasa de 345 a 385 px y la altura de la vista Opciones incluye headerHeight + 20 + alto del panel + 18, respetando mínimo de navegación y cálculo de escala. Las otras vistas mantienen sus alturas y el comportamiento de anclaje actual.
+
+Verificación estática: compilación de 19 módulos con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres y etiquetas, conteos 572 funciones instrumentadas/26 llamadas protegidas y diff --check. Revisión de referencias del setter (casilla/reset), guard de drag, orden de parada/guardado y preferencia default. No se ejecuta el addon ni se recrean simuladores.
+
+Criterios nuevos para usuario/QA: mover/desmarcada y guardar; marcar y comprobar que no se mueve ni abre llamado tras intentar arrastrarlo; clic normal conserva confirmación; cambiar tamaño conserva escala prevista; reload conserva bloqueo/posición; desmarcar permite mover; restablecer vuelve a posición/tamaño predeterminados y desbloquea; Opciones y reset quedan dentro con escalas habituales. La confirmación previa del usuario corresponde a la entrega anterior; esta función nueva aún no se probó en Forever.
+
+Versión 0.2.1 conservada. Sin instalación, commit, push o modificación del PR por este cambio.
+
+
+Instalación posterior autorizada del bloqueo de posición — 26/11/2026: Tartaro 0.2.1 local posterior a ae9caa9 copiado en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`. Los 40 archivos coinciden por SHA256; sin extras, borrados, respaldos o ZIP. UI.lua: `0FFFE6705424C6373D0B5938F97991776D69C844C10C68CC4482444CE40E22CE`. Sin commit, push, cambio del PR o interacción con WoW. Pendiente prueba del usuario de la nueva opción.
+
+
+Publicación posterior autorizada del bloqueo — 26/11/2026: PR #16 comprobado abierto y sin integrar, con head ae9caa9 antes de operar. Nuevo commit de implementación/documentación y publicación en su rama para QA del encargado, sin merge, auto-merge o instalación adicional. La prueba específica de esta nueva casilla no ha sido confirmada por el usuario; no se extiende la confirmación anterior a ese escenario.
