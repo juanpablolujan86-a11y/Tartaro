@@ -68,57 +68,8 @@ end)
 
 local callLifetime, callCooldown = 300, 30
 
-local corpseContext = CreateFrame("Frame")
-corpseContext:RegisterEvent("PLAYER_DEAD")
-corpseContext:RegisterEvent("PLAYER_UNGHOST")
-corpseContext:RegisterEvent("PLAYER_ENTERING_WORLD")
-corpseContext:SetScript("OnEvent", A.traceCallback("Map.corpseContext", function(self, event)
-    if event == "PLAYER_DEAD" then
-        self.db = A.db
-        self.inInstance = IsInInstance()
-        self.mapID = C_Map.GetBestMapForUnit("player")
-    elseif event == "PLAYER_UNGHOST" or not UnitIsDeadOrGhost("player") then
-        self.db, self.inInstance, self.mapID = nil, nil, nil
-    end
-end))
-
-local corpsePosition; corpsePosition = A.traceCallback("Map.corpsePosition", function()
-    if corpseContext.db ~= A.db or corpseContext.inInstance == nil then
-        return nil, "No se pudo verificar dónde murió tu personaje en esta sesión. No se enviará el llamado."
-    end
-    if corpseContext.inInstance then
-        return nil, "No se puede lanzar un llamado de PvP de mundo para un cadáver dentro de una instancia."
-    end
-    if not C_DeathInfo or type(C_DeathInfo.GetCorpseMapPosition) ~= "function" then
-        return nil, "El cliente no permite consultar la ubicación de tu cadáver."
-    end
-    local mapID, visited = corpseContext.mapID, {}
-    for _ = 1, 4 do
-        if not number(mapID) or mapID <= 0 or mapID % 1 ~= 0 or visited[mapID] then break end
-        visited[mapID] = true
-        local ok, position, y = A.debugPcall("Map.corpsePosition.query", C_DeathInfo.GetCorpseMapPosition, mapID)
-        local x
-        if ok and readable(position) then
-            if type(position) == "table" or type(position) == "userdata" then
-                if type(position.GetXY) == "function" then
-                    local valid
-                    valid, x, y = A.debugPcall("Map.corpsePosition.coordinates", position.GetXY, position)
-                    if not valid then x, y = nil, nil end
-                else
-                    x, y = position.x, position.y
-                end
-            elseif type(position) == "number" then
-                x = position
-            end
-        end
-        if coordinate(x) and coordinate(y) and (x ~= 0 or y ~= 0) then return mapID, x, y end
-        local valid, info = A.debugPcall("Map.corpsePosition.parent", C_Map.GetMapInfo, mapID)
-        mapID = valid and readable(info) and info and info.parentMapID or nil
-    end
-    return nil, "No se pudo obtener la ubicación de tu cadáver. No se enviará el llamado."
-end)
-
 local callRestriction; callRestriction = A.traceCallback("Map.lua:121:callRestriction", function()
+    if UnitIsGhost("player") then return "No podés lanzar el llamado como fantasma." end
     if IsInInstance() then return "El llamado solo se puede lanzar en PvP de mundo, fuera de instancias." end
     if not A.can(A.me, "call") then return "Tu rango no puede lanzar llamados." end
 end)
@@ -126,11 +77,6 @@ end)
 A.prepareCall = A.traceCallback("Map.lua:126:A.prepareCall", function()
     local reason = callRestriction()
     if reason then return nil, reason end
-    if UnitIsGhost("player") then
-        local mapID, x, y = corpsePosition()
-        if not mapID then return nil, x end
-        return {mapID = mapID, x = x, y = y, corpse = true}
-    end
     local mapID, x, y = ownPosition()
     if not mapID then return nil, "El llamado requiere una ubicación al aire libre." end
     return {mapID = mapID, x = x, y = y}
@@ -183,17 +129,7 @@ end)
 A.sendCall = A.traceCallback("Map.lua:183:A.sendCall", function(position)
     local reason = callRestriction()
     if reason then return nil, reason end
-    if not position or (position.corpse == true) ~= (UnitIsGhost("player") == true) then
-        return nil, "Tu estado cambió. Volvé a abrir el llamado para confirmar su ubicación."
-    end
-    if position.corpse then
-        local current, err = A.prepareCall()
-        if not current then return nil, err end
-        if current.mapID ~= position.mapID or wireCoordinate(current.x) ~= wireCoordinate(position.x)
-            or wireCoordinate(current.y) ~= wireCoordinate(position.y) then
-            return nil, "La ubicación de tu cadáver cambió. Volvé a abrir el llamado para confirmarla."
-        end
-    end
+    if not position then return nil, "Falta la ubicación del llamado." end
     local now = GetServerTime()
     local previous = A.calls[A.self]
     local last = math.max(previous and previous.when or 0, A.closedCalls[A.self] or 0)

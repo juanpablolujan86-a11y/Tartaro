@@ -1,5 +1,9 @@
 # Cambios
 
+## 0.2.1 — integración
+
+El llamado se puede lanzar antes de liberar espíritu. Se bloquea como fantasma tanto al abrir como al confirmar.
+
 ## 0.2.1 — actualización del PR #16: bloquear posición del llamado
 
 - Añadir casilla en Opciones para impedir arrastre del botón Llamado a las Armas, conservando clic y tamaño. Desmarcada por defecto, persistente entre sesiones e incluida en Restablecer configuración.
