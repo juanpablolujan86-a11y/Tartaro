@@ -835,3 +835,10 @@ Autorizado un nuevo commit local sobre 2e89fa8, versión 0.2.1. Reúne el marco 
 Instalación final previa autorizada y verificada con 40 SHA256 coincidentes, sin operar el cliente. Esta consolidación actualiza documentación y no reinstala. Compilación estática de 19 Lua con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres, etiquetas, conteos 570/26 y diff. Pruebas visuales finales, permisos, cancelación/eliminación recibidas y sincronización real entre dos clientes siguen pendientes; no se declaran cerradas.
 
 PR #16 comprobado abierto y sin integrar; el usuario autoriza publicar este nuevo commit en su rama y actualizar la descripción. Sin reescritura del historial, merge, auto-merge, release o ZIP. Los estados anteriores «sin commit/push/instalación» son históricos de las entregas, no restricciones posteriores a esta autorización. El commit que contiene esta anotación identifica la consolidación.
+
+
+## Confirmación del usuario y QA del encargado — 26/11/2026
+
+Después de consolidar 4fb3eb3, el usuario confirma que ya hizo las pruebas visuales y de funcionamiento. Se registra como evidencia reportada por él, sin atribuir al agente ejecución dentro de WoW o inventar escenarios multicliente específicos. Las menciones anteriores a revisión visual pendiente describen el estado previo a esa confirmación, no una nueva aprobación exigida al usuario.
+
+El propósito del PR #16 es que el encargado realice QA antes de aprobar e integrar. Se solicita esa revisión con cambios, límites y criterios documentados; no se hace merge ni se activa auto-merge. Esta actualización documental no cambia el código, no instala y no implica que el QA del encargado ya haya terminado.

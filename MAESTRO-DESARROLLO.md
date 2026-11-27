@@ -1,5 +1,11 @@
 # Estado de desarrollo de Tartaro
 
+## Validación reportada y revisión del encargado — 26/11/2026
+
+- El usuario confirma que ya realizó las pruebas visuales y de funcionamiento de esta entrega. Es confirmación reportada por el propietario, sin ejecución independiente del agente; no se atribuyen escenarios concretos adicionales que no haya enumerado.
+- El PR #16 se envía para QA del encargado antes de aprobación y merge. No hay una nueva aceptación visual pendiente del usuario ni se le exige repetir esas pruebas. Los apartados anteriores conservan el estado histórico previo a esta confirmación.
+- Commit funcional consolidado: 4fb3eb3. Esta anotación actualiza la evidencia de validación y su responsable; sin modificar código o instalación. Pruebas estáticas realizadas por el agente y QA del encargado son comprobaciones distintas. Sin merge ni auto-merge.
+
 ## Consolidación para revisión del PR #16 — 26/11/2026
 
 - Autorizado un nuevo commit local sobre 2e89fa8, conservando 0.2.1: marco/banner Horda final con fondo completo, menú contenido, eliminación desde tarjetas de eventos, cancelación/recuperación de pedidos y resaltado de HOY. Incluye documentación, recursos referenciados, criterios y evidencias de instalación.
