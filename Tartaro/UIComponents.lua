@@ -14,46 +14,61 @@ Components.create = A.traceCallback("UIComponents.lua:6:Components.create", func
         parts[frame][#parts[frame]+1] = part
         return part
     end)
-    view.Row = A.traceCallback("UIComponents.lua:17:view.Row", function()
+    local release; release = A.traceCallback("UIComponents.release", function(frame)
+        if parts[frame] then
+            for _, part in ipairs(parts[frame]) do part:Hide() end
+        end
+        if frame.button then frame.button:SetScript("OnClick",nil) end
+        if frame.check then frame.check:SetScript("OnClick",nil) end
+    end)
+    view.Row = A.traceCallback("UIComponents.lua:24:view.Row", function(kind)
         active = active+1
         local frame=rows[active]
         if not frame then
             frame=CreateFrame("Frame",nil,content)
+            rows[active]=frame
+            A.debugLog("ui.row.created","UIComponents.Row",active)
+        end
+        release(frame)
+        if kind == "label" and not frame.label then
             frame.label=view.Attach(frame,options.text(frame,"")); frame.label:SetPoint("TOPLEFT",0,-3)
+            A.debugLog("ui.part.created","UIComponents.Row",active,kind)
+        elseif kind == "button" and not frame.button then
             frame.button=view.Attach(frame,options.button(frame)); frame.button:SetPoint("TOPLEFT")
+            A.debugLog("ui.part.created","UIComponents.Row",active,kind)
+        elseif kind == "check" and not frame.check then
             frame.check=view.Attach(frame,CreateFrame("CheckButton",nil,frame,"UICheckButtonTemplate")); frame.check:SetPoint("TOPLEFT",0,2)
             frame.checkText=options.text(frame.check,""); frame.checkText:SetPoint("LEFT",frame.check,"RIGHT",4,0)
-            rows[active]=frame
+            A.debugLog("ui.part.created","UIComponents.Row",active,kind)
         end
         frame:SetParent(parent)
         frame:ClearAllPoints(); frame:SetPoint("TOPLEFT",layout.x,-layout.y); frame:SetWidth(layout.width)
-        frame.label:SetWidth(layout.width-8)
-        for _, part in ipairs(parts[frame]) do part:Hide() end
+        if frame.label then frame.label:SetWidth(layout.width-8) end
         frame:Show()
         return frame
     end)
-    view.Line = A.traceCallback("UIComponents.lua:35:view.Line", function(value,color,compact,font)
-        local frame=view.Row()
+    view.Line = A.traceCallback("UIComponents.lua:50:view.Line", function(value,color,compact,font)
+        local frame=view.Row("label")
         frame.label:SetFontObject(font or GameFontHighlight)
         frame.label:SetText(value); frame.label:SetTextColor(unpack(color or {0.96,0.9,0.82})); frame.label:Show()
         local height=math.max(compact and 17 or 23,frame.label:GetStringHeight()+(compact and 4 or 10))
         frame:SetHeight(height); layout.y=layout.y+height
         return frame
     end)
-    view.Button = A.traceCallback("UIComponents.lua:43:view.Button", function(label,callback,primary,width)
-        local frame=view.Row()
+    view.Button = A.traceCallback("UIComponents.lua:58:view.Button", function(label,callback,primary,width)
+        local frame=view.Row("button")
         frame.button:SetSize(math.min(layout.width-8,width or 228),27)
         frame.button:SetText(label); frame.button:GetFontString():SetWidth(frame.button:GetWidth()-10); frame.button:GetFontString():SetMaxLines(1)
         frame.button:SetStyle(false,primary); frame.button:SetScript("OnClick",callback); frame.button:Show()
         frame:SetHeight(35); layout.y=layout.y+35
     end)
-    view.Check = A.traceCallback("UIComponents.lua:50:view.Check", function(label,enabled,callback)
-        local frame=view.Row()
+    view.Check = A.traceCallback("UIComponents.lua:65:view.Check", function(label,enabled,callback)
+        local frame=view.Row("check")
         frame.checkText:SetText(label); frame.check:SetChecked(enabled)
-        frame.check:SetScript("OnClick",A.traceCallback("UIComponents.lua:53:callback", function(self) callback(self:GetChecked() and true or false) end))
+        frame.check:SetScript("OnClick",A.traceCallback("UIComponents.lua:68:callback", function(self) callback(self:GetChecked() and true or false) end))
         frame.check:Show(); frame:SetHeight(32); layout.y=layout.y+32
     end)
-    view.TableRow = A.traceCallback("UIComponents.lua:56:view.TableRow", function(values,columns,height,gap,colors)
+    view.TableRow = A.traceCallback("UIComponents.lua:71:view.TableRow", function(values,columns,height,gap,colors)
         local frame=view.Row(); frame.tableCells=frame.tableCells or {}
         for i=1,#columns-1 do
             local cell=frame.tableCells[i]
@@ -64,13 +79,13 @@ Components.create = A.traceCallback("UIComponents.lua:6:Components.create", func
         frame:SetHeight(height); layout.y=layout.y+height+gap
         return frame
     end)
-    view.Card = A.traceCallback("UIComponents.lua:67:view.Card", function(index,left,top,width,height,selected)
+    view.Card = A.traceCallback("UIComponents.lua:82:view.Card", function(index,left,top,width,height,selected)
         local card=cards[index]
         if not card then card=content:CreateTexture(nil,"BACKGROUND"); cards[index]=card end
         if selected then card:SetColorTexture(0.28,0.16,0.12,1) else card:SetColorTexture(0.15,0.105,0.095,1) end
         card:ClearAllPoints(); card:SetPoint("TOPLEFT",left,-top); card:SetSize(width,height); card:Show()
     end)
-    view.Grid = A.traceCallback("UIComponents.lua:73:view.Grid", function(records,render,focus)
+    view.Grid = A.traceCallback("UIComponents.lua:88:view.Grid", function(records,render,focus)
         local width=layout.width
         local gap,pad=10,9
         local cardWidth=(width-gap)/2
@@ -93,30 +108,30 @@ Components.create = A.traceCallback("UIComponents.lua:6:Components.create", func
         layout.x,layout.width=0,width
         return focusedTop
     end)
-    view.Begin = A.traceCallback("UIComponents.lua:96:view.Begin", function(width,fixed)
+    view.Begin = A.traceCallback("UIComponents.lua:111:view.Begin", function(width,fixed)
         layout.x,layout.width,layout.y,active=0,width,0,0
         header:SetShown(fixed); header:SetWidth(width)
         parent=fixed and header or content
         for _,card in ipairs(cards) do card:Hide() end
     end)
-    view.BeginTable = A.traceCallback("UIComponents.lua:102:view.BeginTable", function()
+    view.BeginTable = A.traceCallback("UIComponents.lua:117:view.BeginTable", function()
         header:SetHeight(layout.y); options.onHeaderHeight(layout.y)
         parent=content; layout.y=0
     end)
-    view.Finish = A.traceCallback("UIComponents.lua:106:view.Finish", function()
-        for index=active+1,#rows do rows[index]:Hide() end
+    view.Finish = A.traceCallback("UIComponents.lua:121:view.Finish", function()
+        for index=active+1,#rows do release(rows[index]); rows[index]:Hide() end
         parent=content
         content:SetHeight(math.max(layout.y,scroll:GetHeight()))
         if scroll.ScrollBar then scroll.ScrollBar:SetShown(layout.y>scroll:GetHeight()) end
         if header:IsShown() then scroll:SetVerticalScroll(math.max(0,math.min(scroll:GetVerticalScroll(),content:GetHeight()-scroll:GetHeight()))) end
     end)
-    view.Hide = A.traceCallback("UIComponents.lua:113:view.Hide", function()
+    view.Hide = A.traceCallback("UIComponents.lua:128:view.Hide", function()
         parent=content; header:Hide()
-        for _,frame in ipairs(rows) do frame:Hide() end
+        for _,frame in ipairs(rows) do release(frame); frame:Hide() end
         for _,card in ipairs(cards) do card:Hide() end
     end)
-    view.Rows = A.traceCallback("UIComponents.lua:118:view.Rows", function() return rows,active end)
-    view.Count = A.traceCallback("UIComponents.lua:119:view.Count", function() return active end)
+    view.Rows = A.traceCallback("UIComponents.lua:133:view.Rows", function() return rows,active end)
+    view.Count = A.traceCallback("UIComponents.lua:134:view.Count", function() return active end)
     return view
 end)
 if A.traceLoad then A.traceLoad("module.end", "UIComponents.lua") end

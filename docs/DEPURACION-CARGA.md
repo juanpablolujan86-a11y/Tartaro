@@ -24,7 +24,7 @@ Se mantienen la inspección del código, la compilación de sintaxis Lua 5.1, el
 
 El propietario ordena retirar la ventana Pruebas locales y guía, sus botones Ejecutar pruebas/Ver informe y el ejecutor Diagnostics. Se eliminan Diagnostics.lua y DiagnosticsView.lua de la fuente y del TOC. Los informes históricos en SavedVariables no se borran, pero no hay código que los muestre o ejecute. La copia previamente instalada 0.1.60 conserva esa interfaz hasta que se solicite actualizarla; el PR no instala archivos en el juego.
 
-LoadTrace.lua se carga primero y registra módulos iniciados/finalizados, faltantes e inicialización. El resto de los 18 módulos contiene 531 funciones propias instrumentadas mediante A.traceCallback. El registrador no se instrumenta a sí mismo. Se mantienen 21 puntos de llamadas protegidas mediante A.debugPcall, conservando sus resultados originales y registrando errores atrapados sin convertirlos en éxito.
+LoadTrace.lua se carga primero y registra módulos iniciados/finalizados, faltantes e inicialización. El resto de los 18 módulos contiene 572 funciones propias instrumentadas mediante A.traceCallback, incluyendo las revisiones locales de presencia, avisos, calendario y anclaje opcional de ventana. El registrador no se instrumenta a sí mismo. Se mantienen 26 puntos de llamadas protegidas mediante A.debugPcall, conservando sus resultados originales y registrando errores atrapados sin convertirlos en éxito. presence.changed identifica transiciones observadas en recepción y al caducar la confirmación con la tabla visible; notification.shown registra únicamente avisos efectivamente presentados con día, evento y clase de aviso; addons.report registra cambios de versión/estado recibidos del remitente validado; los logs permanecen apagados por defecto.
 
 Cada entrada incluye secuencia, hora, tiempo relativo, operación, argumentos/resultados resumidos y relación de la salida con su llamada. Se conservan self y retornos múltiples/nil. Las tablas y cadenas se resumen con límites y se evitan valores secretos. También se registran directamente vistas, ventanas, longitud del editor, selección, recetas/pedidos, tooltips, ordenación y transporte. No hay batería de comprobaciones, pasos guiados, registros ficticios ni acciones automáticas de juego para validarlos.
 
@@ -47,4 +47,30 @@ Apagado por defecto mediante developmentBuild=false, respetando una preferencia 
 
 ## Verificación de entrega
 
+La comprobación de compilación de esta entrega utiliza la biblioteca local LuaJIT compatible con Lua 5.1; no certifica un intérprete idéntico al del cliente ni ejecuta APIs de WoW.
+
 Inspección de código, auditoría estructural de cobertura, sintaxis Lua 5.1, XML, caracteres, TOC/recursos y diff --check. No se recrean las pruebas externas eliminadas ni se ejecuta el addon mediante APIs simuladas. Pendiente comprobación real por el usuario; el agente no inspecciona ni controla WoW.
+
+## Preparación de datos con debug apagado — 26/11/2026
+
+isDebugEnabled consulta runtimeEnabled del registrador. Diecisiete llamadas de UI comprueban ese estado antes de construir tablas o consultar controles solo para registrar contexto; no se añaden closures de evaluación diferida. Los logs de carga/errores/operaciones, límites y preferencias se mantienen. Siguen existiendo wrappers y llamadas de argumentos simples; no se afirma coste total cero. Implementación local de los puntos 9/10 del plan de CPU/RAM, pendiente comprobación dentro de Forever.
+
+
+## Consulta de cadáver — 26/11/2026
+
+Map.corpseContext y Map.corpsePosition están instrumentados. Las consultas de posición, lectura de vector y mapa padre emplean debugPcall; errores quedan como caught.error cuando debug está activo. Cobertura total actual: 565 funciones instrumentadas y 24 sitios de llamada protegida. Contexto de muerte solo en memoria, sin nuevos logs persistentes o temporizadores; apagado por defecto conservado.
+
+
+## Recursos del banner — 26/11/2026
+
+Las dos consultas iniciales de atlas se protegen con debugPcall (UI.header.clothAtlas y UI.header.hordeFrameAtlas); no añaden timers o callbacks instrumentados. Conteo actual: 565 funciones propias y 26 llamadas protegidas. Los conteos anteriores se conservan como evidencia de sus respectivas entregas.
+
+
+## Acciones de eventos y recuperación de pedidos — 26/11/2026
+
+win.ConfirmDeleteEvent, los callbacks de eliminación futura/vencida, A.restoreOrder y su botón se instrumentan mediante el registrador existente. Cobertura estructural actual: 570 funciones y 26 llamadas protegidas. Contextos/retornos siguen el mecanismo existente; debug apagado por defecto conservado. Verificación de entrega entre clientes pendiente; no confundir encolado con recepción remota.
+
+
+## Bloqueo de posición del llamado — 26/11/2026
+
+La casilla y A.setCallLauncherLocked añaden dos operaciones instrumentadas (UI.callLauncher.lockOption/setLocked). Conteo actual: 572 funciones y 26 llamadas protegidas. Wrappers y apagado por defecto conservados, sin nuevos timers.

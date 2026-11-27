@@ -5,7 +5,7 @@ local nativePins = {}
 local minimapPins = {}
 local hookedMap
 local hookedOpenMap
-local mapUpdatePending
+local mapUpdatePending, mapUpdateSerial = nil, 0
 local cachedGroup, groupUntil
 local locationLifetime = 75
 local dotTexture = "Interface\\AddOns\\Tartaro\\MapDot"
@@ -27,20 +27,29 @@ end)
 A.invalidateMap = A.traceCallback("Map.lua:27:A.invalidateMap", function(groupChanged)
     if groupChanged then cachedGroup = nil end
     if mapUpdatePending or not WorldMapFrame or not WorldMapFrame:IsShown() then return end
-    mapUpdatePending = true
-    C_Timer.After(0.12, A.traceCallback("Map.lua:31:callback", function()
+    mapUpdateSerial = mapUpdateSerial + 1
+    local token = mapUpdateSerial
+    mapUpdatePending = token
+    C_Timer.After(0.12, A.traceCallback("Map.lua:33:callback", function()
+        if mapUpdatePending ~= token then return end
         mapUpdatePending = nil
         A.drawPositions()
     end))
 end)
 
-A.receivePosition = A.traceCallback("Map.lua:37:A.receivePosition", function(member, mapID, x, y)
+A.receivePosition = A.traceCallback("Map.lua:40:A.receivePosition", function(member, mapID, x, y)
     if not mapID or mapID <= 0 or mapID % 1 ~= 0 or not coordinate(x) or not coordinate(y) then return end
-    A.positions[member.id] = { mapID = mapID, x = x, y = y, name = member.name, expires = GetTime() + locationLifetime }
-    A.invalidateMap()
+    local position = A.positions[member.id]
+    local changed = not position or position.mapID ~= mapID or position.x ~= x or position.y ~= y or position.name ~= member.name
+    if not position then position = {}; A.positions[member.id] = position end
+    position.mapID, position.x, position.y, position.name = mapID, x, y, member.name
+    position.expires = GetTime() + locationLifetime
+    if changed then A.invalidateMap() end
 end)
 
-local ownPosition; ownPosition = A.traceCallback("Map.lua:43:ownPosition", function()
+local mapViewChanged; mapViewChanged = A.traceCallback("Map.viewChanged", function() A.invalidateMap() end)
+
+local ownPosition; ownPosition = A.traceCallback("Map.lua:52:ownPosition", function()
     if IsInInstance() then return end
     local mapID = C_Map.GetBestMapForUnit("player")
     if not readable(mapID) or not mapID then return end
@@ -52,20 +61,20 @@ local ownPosition; ownPosition = A.traceCallback("Map.lua:43:ownPosition", funct
     end
 end)
 
-local wireCoordinate; wireCoordinate = A.traceCallback("Map.lua:55:wireCoordinate", function(value)
+local wireCoordinate; wireCoordinate = A.traceCallback("Map.lua:64:wireCoordinate", function(value)
     local scaled = math.floor(value * 100000 + 0.5)
     return ("%d.%05d"):format(math.floor(scaled / 100000), scaled % 100000)
 end)
 
 local callLifetime, callCooldown = 300, 30
 
-local callRestriction; callRestriction = A.traceCallback("Map.lua:62:callRestriction", function()
+local callRestriction; callRestriction = A.traceCallback("Map.lua:121:callRestriction", function()
     if UnitIsGhost("player") then return "No podés lanzar el llamado como fantasma." end
     if IsInInstance() then return "El llamado solo se puede lanzar en PvP de mundo, fuera de instancias." end
     if not A.can(A.me, "call") then return "Tu rango no puede lanzar llamados." end
 end)
 
-A.prepareCall = A.traceCallback("Map.lua:68:A.prepareCall", function()
+A.prepareCall = A.traceCallback("Map.lua:126:A.prepareCall", function()
     local reason = callRestriction()
     if reason then return nil, reason end
     local mapID, x, y = ownPosition()
@@ -73,7 +82,7 @@ A.prepareCall = A.traceCallback("Map.lua:68:A.prepareCall", function()
     return {mapID = mapID, x = x, y = y}
 end)
 
-A.callLocation = A.traceCallback("Map.lua:76:A.callLocation", function(call)
+A.callLocation = A.traceCallback("Map.lua:139:A.callLocation", function(call)
     local info = C_Map.GetMapInfo(call.mapID)
     local name = info and readable(info.name) and info.name or ("Zona " .. call.mapID)
     return ("%s · %.0f, %.0f"):format(name, call.x * 100, call.y * 100)
@@ -82,7 +91,7 @@ end)
 local groupedMembers
 local callParty, callPartyDB
 
-local inCallParty; inCallParty = A.traceCallback("Map.lua:85:inCallParty", function(grouped, now, previousCalls)
+local inCallParty; inCallParty = A.traceCallback("Map.lua:148:inCallParty", function(grouped, now, previousCalls)
     local active = false
     for id in pairs(grouped) do
         if id ~= A.self then
@@ -97,7 +106,7 @@ local inCallParty; inCallParty = A.traceCallback("Map.lua:85:inCallParty", funct
     return active
 end)
 
-A.receiveCall = A.traceCallback("Map.lua:100:A.receiveCall", function(member, when, mapID, x, y)
+A.receiveCall = A.traceCallback("Map.lua:163:A.receiveCall", function(member, when, mapID, x, y)
     local now = GetServerTime()
     if not number(when) or when % 1 ~= 0 or when > now + 5 or now - when >= callLifetime
         or not number(mapID) or mapID <= 0 or mapID % 1 ~= 0 or not coordinate(x) or not coordinate(y) then return end
@@ -117,9 +126,10 @@ A.receiveCall = A.traceCallback("Map.lua:100:A.receiveCall", function(member, wh
     end
 end)
 
-A.sendCall = A.traceCallback("Map.lua:120:A.sendCall", function(position)
+A.sendCall = A.traceCallback("Map.lua:183:A.sendCall", function(position)
     local reason = callRestriction()
     if reason then return nil, reason end
+    if not position then return nil, "Falta la ubicación del llamado." end
     local now = GetServerTime()
     local previous = A.calls[A.self]
     local last = math.max(previous and previous.when or 0, A.closedCalls[A.self] or 0)
@@ -131,7 +141,7 @@ A.sendCall = A.traceCallback("Map.lua:120:A.sendCall", function(position)
     return true
 end)
 
-A.openCallMap = A.traceCallback("Map.lua:134:A.openCallMap", function(call)
+A.openCallMap = A.traceCallback("Map.lua:208:A.openCallMap", function(call)
     local map = WorldMapFrame
     if not map then return end
     ShowUIPanel(map)
@@ -144,27 +154,27 @@ A.openCallMap = A.traceCallback("Map.lua:134:A.openCallMap", function(call)
     A.drawPositions()
 end)
 
-A.broadcastPosition = A.traceCallback("Map.lua:147:A.broadcastPosition", function()
+A.broadcastPosition = A.traceCallback("Map.lua:221:A.broadcastPosition", function()
     if not A.guild or TartaroDB.shareLocation == false then return end
     A.clearPendingPosition()
     local mapID, x, y = ownPosition()
     if mapID then A.send("P", mapID, wireCoordinate(x), wireCoordinate(y)) end
 end)
 
-A.locationStatus = A.traceCallback("Map.lua:154:A.locationStatus", function()
+A.locationStatus = A.traceCallback("Map.lua:228:A.locationStatus", function()
     if TartaroDB.shareLocation == false then return "Tu ubicación está desactivada." end
     if not ownPosition() then return "WoW no proporciona coordenadas para tu ubicación actual." end
     if not A.locationSent or GetTime() - A.locationSent > locationLifetime then return "Esperando poder enviar tu ubicación." end
     return "Tu ubicación se está enviando."
 end)
 
-A.setSharing = A.traceCallback("Map.lua:161:A.setSharing", function(enabled)
+A.setSharing = A.traceCallback("Map.lua:235:A.setSharing", function(enabled)
     TartaroDB.shareLocation = enabled
     A.clearPendingPosition()
     if enabled then A.broadcastPosition() else A.send("X") end
 end)
 
-groupedMembers = A.traceCallback("Map.lua:167:callback", function()
+groupedMembers = A.traceCallback("Map.lua:241:callback", function()
     local now = GetTime()
     if cachedGroup and now < groupUntil then return cachedGroup end
     local grouped = {}
@@ -182,12 +192,12 @@ end)
 
 local groupEvents = CreateFrame("Frame")
 groupEvents:RegisterEvent("GROUP_ROSTER_UPDATE")
-groupEvents:SetScript("OnEvent", A.traceCallback("Map.lua:185:callback", function()
+groupEvents:SetScript("OnEvent", A.traceCallback("Map.lua:259:callback", function()
     A.invalidateMap(true)
     if A.db then inCallParty(groupedMembers(), GetServerTime(), A.calls) end
 end))
 
-local stitchedCoordinates; stitchedCoordinates = A.traceCallback("Map.lua:190:stitchedCoordinates", function(api, position, mapID)
+local stitchedCoordinates; stitchedCoordinates = A.traceCallback("Map.lua:264:stitchedCoordinates", function(api, position, mapID)
     if api.CanvasFromWorldPos and C_Map.GetWorldPosFromMapPos then
         local continent, world = C_Map.GetWorldPosFromMapPos(position.mapID, CreateVector2D(position.x, position.y))
         if continent and world then
@@ -202,7 +212,7 @@ local stitchedCoordinates; stitchedCoordinates = A.traceCallback("Map.lua:190:st
     end
 end)
 
-local mapRect; mapRect = A.traceCallback("Map.lua:205:mapRect", function(inner, outer)
+local mapRect; mapRect = A.traceCallback("Map.lua:279:mapRect", function(inner, outer)
     if not C_Map.GetMapRectOnMap then return end
     local left, right, top, bottom = C_Map.GetMapRectOnMap(inner, outer)
     if coordinate(left) and coordinate(right) and coordinate(top) and coordinate(bottom)
@@ -211,7 +221,7 @@ local mapRect; mapRect = A.traceCallback("Map.lua:205:mapRect", function(inner, 
     end
 end)
 
-local mapCoordinates; mapCoordinates = A.traceCallback("Map.lua:214:mapCoordinates", function(position, mapID, stitched)
+local mapCoordinates; mapCoordinates = A.traceCallback("Map.lua:288:mapCoordinates", function(position, mapID, stitched)
     if stitched then return stitchedCoordinates(stitched, position, mapID) end
     if mapID == position.mapID then return position.x, position.y end
     local left, right, top, bottom = mapRect(position.mapID, mapID)
@@ -230,17 +240,31 @@ local mapCoordinates; mapCoordinates = A.traceCallback("Map.lua:214:mapCoordinat
     if (projectedMap == mapID or projectedMap == nil) and projected then return projected:GetXY() end
 end)
 
-local colorPin; colorPin = A.traceCallback("Map.lua:233:colorPin", function(pin, member)
-    local class = member.class
+local colorPin; colorPin = A.traceCallback("Map.lua:307:colorPin", function(pin, member, isCall)
+    local class = member and member.class
     local color = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
-    if color then
-        pin.dot:SetVertexColor(color.r, color.g, color.b)
-    else
-        pin.dot:SetVertexColor(0.85, 0.85, 0.85)
+    local r = isCall and 1 or color and color.r or 0.85
+    local g = isCall and 1 or color and color.g or 0.85
+    local b = isCall and 1 or color and color.b or 0.85
+    if pin.tartaroR ~= r or pin.tartaroG ~= g or pin.tartaroB ~= b then
+        pin.dot:SetVertexColor(r,g,b)
+        pin.tartaroR, pin.tartaroG, pin.tartaroB = r,g,b
     end
 end)
 
-local newPin; newPin = A.traceCallback("Map.lua:243:newPin", function(canvas)
+local placePin; placePin = A.traceCallback("Map.placePin", function(pin, parent, anchor, x, y)
+    if pin:GetParent() ~= parent then
+        pin:SetParent(parent)
+        pin.tartaroX = nil
+    end
+    if pin.tartaroX ~= x or pin.tartaroY ~= y or pin.tartaroAnchor ~= anchor then
+        pin:ClearAllPoints()
+        pin:SetPoint("CENTER",parent,anchor,x,y)
+        pin.tartaroX, pin.tartaroY, pin.tartaroAnchor = x,y,anchor
+    end
+end)
+
+local newPin; newPin = A.traceCallback("Map.lua:331:newPin", function(canvas)
     local pin = CreateFrame("Frame", nil, canvas)
     pin:SetSize(11, 11)
     pin:SetFrameStrata(canvas:GetFrameStrata())
@@ -251,56 +275,59 @@ local newPin; newPin = A.traceCallback("Map.lua:243:newPin", function(canvas)
         pin:EnableMouseClicks(false)
         pin:EnableMouseMotion(true)
     end
-    pin:SetScript("OnEnter", A.traceCallback("Map.lua:254:callback", function(self)
+    pin:SetScript("OnEnter", A.traceCallback("Map.lua:342:callback", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(self.character, 1, 0.8, 0.55)
         GameTooltip:Show()
     end))
-    pin:SetScript("OnLeave", A.traceCallback("Map.lua:259:callback", function() GameTooltip:Hide() end))
+    pin:SetScript("OnLeave", A.traceCallback("Map.lua:347:callback", function() GameTooltip:Hide() end))
     return pin
 end)
 
-local releaseNativePins; releaseNativePins = A.traceCallback("Map.lua:263:releaseNativePins", function(map)
+local releaseNativePins; releaseNativePins = A.traceCallback("Map.lua:351:releaseNativePins", function(map)
     for id, pin in pairs(nativePins) do
         if pin:GetMap() == map then map:RemovePin(pin) end
         nativePins[id] = nil
     end
 end)
 
-local nativePin; nativePin = A.traceCallback("Map.lua:270:nativePin", function(map, id)
+local nativePin; nativePin = A.traceCallback("Map.lua:358:nativePin", function(map, id)
     local pin = nativePins[id]
     if pin and pin:GetMap() == map then return pin end
     pin = map:AcquirePin(nativeTemplate)
+    pin.tartaroTexture = nil
+    pin.tartaroR, pin.tartaroG, pin.tartaroB = nil, nil, nil
     nativePins[id] = pin
     return pin
 end)
 
-local prepareNativeTemplate; prepareNativeTemplate = A.traceCallback("Map.lua:278:prepareNativeTemplate", function()
+local prepareNativeTemplate; prepareNativeTemplate = A.traceCallback("Map.lua:368:prepareNativeTemplate", function()
     if not MapCanvasPinMixin then return false end
     if not TartaroWorldMapPinMixin.SetOwningMap then
         Mixin(TartaroWorldMapPinMixin, MapCanvasPinMixin)
-        TartaroWorldMapPinMixin.OnLoad = A.traceCallback("Map.lua:282:TartaroWorldMapPinMixin:OnLoad", function(self)
+        TartaroWorldMapPinMixin.OnLoad = A.traceCallback("Map.lua:372:TartaroWorldMapPinMixin:OnLoad", function(self)
             self:UseFrameLevelType("PIN_FRAME_LEVEL_AREA_POI", 12)
             self:SetScalingLimits(1, 1, 1)
         end)
-        TartaroWorldMapPinMixin.OnMouseEnter = A.traceCallback("Map.lua:286:TartaroWorldMapPinMixin:OnMouseEnter", function(self)
+        TartaroWorldMapPinMixin.OnMouseEnter = A.traceCallback("Map.lua:376:TartaroWorldMapPinMixin:OnMouseEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText(self.character, 1, 0.8, 0.55)
             GameTooltip:Show()
         end)
-        TartaroWorldMapPinMixin.OnMouseLeave = A.traceCallback("Map.lua:291:TartaroWorldMapPinMixin:OnMouseLeave", function(self)
+        TartaroWorldMapPinMixin.OnMouseLeave = A.traceCallback("Map.lua:381:TartaroWorldMapPinMixin:OnMouseLeave", function(self)
             GameTooltip:Hide()
         end)
     end
     return true
 end)
 
-A.drawPositions = A.traceCallback("Map.lua:298:A.drawPositions", function()
+A.drawPositions = A.traceCallback("Map.lua:388:A.drawPositions", function()
+    mapUpdatePending = nil
     local api = OpenMapAPI
     if api and api.major == 1 and api.RegisterCallback and hookedOpenMap ~= api then
         hookedOpenMap = api
-        api.RegisterCallback(A, "OpenMap_ViewChanged", A.drawPositions)
-        api.RegisterCallback(A, "OpenMap_StitchedChanged", A.drawPositions)
+        api.RegisterCallback(A, "OpenMap_ViewChanged", mapViewChanged)
+        api.RegisterCallback(A, "OpenMap_StitchedChanged", mapViewChanged)
     end
     local map = WorldMapFrame
     if not map or not map.GetCanvas then return end
@@ -308,8 +335,8 @@ A.drawPositions = A.traceCallback("Map.lua:298:A.drawPositions", function()
         hookedMap = map
         map:HookScript("OnShow", A.drawPositions)
         map:HookScript("OnHide", releaseNativePins)
-        if map.OnMapChanged then hooksecurefunc(map, "OnMapChanged", A.drawPositions) end
-        if map.OnCanvasScaleChanged then hooksecurefunc(map, "OnCanvasScaleChanged", A.drawPositions) end
+        if map.OnMapChanged then hooksecurefunc(map, "OnMapChanged", mapViewChanged) end
+        if map.OnCanvasScaleChanged then hooksecurefunc(map, "OnCanvasScaleChanged", mapViewChanged) end
     end
     if not map:IsShown() then return end
     local canvas, mapID = map:GetCanvas(), map:GetMapID()
@@ -322,7 +349,7 @@ A.drawPositions = A.traceCallback("Map.lua:298:A.drawPositions", function()
     if artTop then level = math.max(level, artTop + 10) end
     local scale = map:GetEffectiveScale() / canvas:GetEffectiveScale()
     local grouped, used, placed, count = groupedMembers(), 0, {}, 0
-    local draw; draw = A.traceCallback("Map.lua:325:draw", function(id, position, isCall)
+    local draw; draw = A.traceCallback("Map.lua:416:draw", function(id, position, isCall)
         local x, y = mapCoordinates(position, mapID, stitched)
         local valid = stitched and number or coordinate
         if valid(x) and valid(y) then
@@ -335,21 +362,18 @@ A.drawPositions = A.traceCallback("Map.lua:298:A.drawPositions", function()
                 used = used + 1
                 pin = pins[used] or newPin(canvas)
                 pins[used] = pin
-                pin:SetParent(canvas)
-                pin:SetFrameLevel(level)
-                pin:SetScale(scale)
-                pin:ClearAllPoints()
-                pin:SetPoint("CENTER", canvas, "TOPLEFT", x * canvas:GetWidth() / scale, -y * canvas:GetHeight() / scale)
+                if pin:GetScale() ~= scale then pin:SetScale(scale) end
+                placePin(pin,canvas,"TOPLEFT",x * canvas:GetWidth() / scale,-y * canvas:GetHeight() / scale)
+                if pin:GetFrameLevel() ~= level then pin:SetFrameLevel(level) end
             end
-            if isCall then
-                pin.dot:SetTexture("Interface\\AddOns\\Tartaro\\CallSwords")
-                pin.dot:SetVertexColor(1, 1, 1)
-                pin:SetSize(18, 18)
-            else
-                pin.dot:SetTexture(dotTexture)
-                colorPin(pin, A.members[id])
-                pin:SetSize(11, 11)
+            local texture = isCall and "Interface\\AddOns\\Tartaro\\CallSwords" or dotTexture
+            local size = isCall and 18 or 11
+            if pin.tartaroTexture ~= texture then
+                pin.dot:SetTexture(texture)
+                pin.tartaroTexture = texture
             end
+            colorPin(pin,A.members[id],isCall)
+            if pin:GetWidth() ~= size or pin:GetHeight() ~= size then pin:SetSize(size,size) end
             pin.character = isCall and ("Llamado a las armas · " .. position.name) or (position.name .. " · Hermandad")
             pin:Show()
             count = count + 1
@@ -381,7 +405,7 @@ A.drawPositions = A.traceCallback("Map.lua:298:A.drawPositions", function()
     A.worldMapStatus = ("%s · %d marcadores"):format(readable(name) and name or tostring(mapID), count)
 end)
 
-A.drawMinimapPositions = A.traceCallback("Map.lua:384:A.drawMinimapPositions", function()
+A.drawMinimapPositions = A.traceCallback("Map.lua:472:A.drawMinimapPositions", function()
     local minimap = Minimap
     local used = 0
     if next(A.positions) and minimap and minimap:IsVisible() and C_Minimap and C_Minimap.GetViewRadius then
@@ -412,11 +436,11 @@ A.drawMinimapPositions = A.traceCallback("Map.lua:384:A.drawMinimapPositions", f
                                 used = used + 1
                                 local pin = minimapPins[used] or newPin(minimap)
                                 minimapPins[used] = pin
-                                pin:SetFrameLevel(minimap:GetFrameLevel() + 5)
+                                local level = minimap:GetFrameLevel() + 5
+                                if pin:GetFrameLevel() ~= level then pin:SetFrameLevel(level) end
                                 pin.character = position.name .. " · Hermandad"
                                 colorPin(pin, member)
-                                pin:ClearAllPoints()
-                                pin:SetPoint("CENTER", minimap, "CENTER", (east * cos - south * sin) * width,
+                                placePin(pin,minimap,"CENTER",(east * cos - south * sin) * width,
                                     -(east * sin + south * cos) * height)
                                 pin:Show()
                             end
@@ -427,5 +451,17 @@ A.drawMinimapPositions = A.traceCallback("Map.lua:384:A.drawMinimapPositions", f
         end
     end
     for index = used + 1, #minimapPins do minimapPins[index]:Hide() end
+end)
+A.updateMap = A.traceCallback("Map.updateMap", function()
+    if not WorldMapFrame or not WorldMapFrame:IsShown() then
+        local now, serverNow = GetTime(), GetServerTime()
+        for id, position in pairs(A.positions) do
+            if position.expires <= now or not A.members[id] then A.positions[id] = nil end
+        end
+        for id, call in pairs(A.calls) do
+            if call.expires <= serverNow or not A.can(A.members[id],"call") then A.calls[id] = nil end
+        end
+    end
+    A.drawPositions()
 end)
 if A.traceLoad then A.traceLoad("module.end", "Map.lua") end

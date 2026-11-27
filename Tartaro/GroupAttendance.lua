@@ -71,6 +71,7 @@ A.receiveGroupAttendance = A.traceCallback("GroupAttendance.lua:43:A.receiveGrou
         if d == "FULL" then
             if serial == 0 and c == A.self then
                 pendingRequests[sender.id] = nil
+                A.invalidate("groups")
                 print("Tártaro: ese rol ya está completo. Elegí otro cupo disponible.")
             end
             return
@@ -85,7 +86,7 @@ A.receiveGroupAttendance = A.traceCallback("GroupAttendance.lua:43:A.receiveGrou
     end
 end)
 
-A.requestGroupRole = A.traceCallback("GroupAttendance.lua:88:A.requestGroupRole", function(group, role)
+A.requestGroupRole = A.traceCallback("GroupAttendance.lua:89:A.requestGroupRole", function(group, role)
     if not current(group.owner, group.when) then return end
     if group.owner == A.self then
         A.receiveGroupAttendance("GJ", A.me, A.self, tostring(group.when), role)
@@ -95,25 +96,29 @@ A.requestGroupRole = A.traceCallback("GroupAttendance.lua:88:A.requestGroupRole"
     end
 end)
 
-A.groupRequestPending = A.traceCallback("GroupAttendance.lua:98:A.groupRequestPending", function(group)
+A.groupRequestPending = A.traceCallback("GroupAttendance.lua:99:A.groupRequestPending", function(group)
     local pending = pendingRequests[group.owner]
     return pending and pending.group == group and pending.db == A.db
 end)
 
-C_Timer.NewTicker(0.7, A.traceCallback("GroupAttendance.lua:103:callback", function()
+C_Timer.NewTicker(0.7, A.traceCallback("GroupAttendance.lua:104:callback", function()
     if not outgoing then return end
     local group = outgoing.group
     if outgoing.db ~= A.db or A.groups[A.self] ~= group or not current(A.self, group.when) then outgoing = nil; return end
     local id = outgoing[outgoingIndex]
     if not id then outgoing = nil; return end
     local entry = state(group).members[id]
-    if not entry or A.sendProfessionPart("GA", group.when, entry.serial, id, entry.role) then outgoingIndex = outgoingIndex + 1 end
+    if not entry or A.sendProfessionPart("GA", group.when, entry.serial, id, entry.role) then
+        outgoing[outgoingIndex] = nil
+        outgoingIndex = outgoingIndex + 1
+    end
 end))
 
-C_Timer.NewTicker(5, A.traceCallback("GroupAttendance.lua:113:callback", function()
+C_Timer.NewTicker(5, A.traceCallback("GroupAttendance.lua:117:callback", function()
     for owner, pending in pairs(pendingRequests) do
         if pending.db ~= A.db or A.groups[owner] ~= pending.group or not current(owner, pending.group.when) then
             pendingRequests[owner] = nil
+            if pending.db == A.db then A.invalidate("groups") end
         elseif GetTime() - pending.sent >= 5 then
             if A.send("GJ", owner, pending.group.when, pending.role) then pending.sent = GetTime() end
         end

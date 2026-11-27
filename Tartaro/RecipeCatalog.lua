@@ -1,6 +1,6 @@
 local _, A = ...
 if A.traceLoad then A.traceLoad("module.begin", "RecipeCatalog.lua") end
-local entries, cached
+local entries, cached, itemEntries
 
 local searchKey; searchKey = A.traceCallback("RecipeCatalog.lua:5:searchKey", function(value)
     local lowered = (strlower or string.lower)(value)
@@ -11,16 +11,43 @@ local searchKey; searchKey = A.traceCallback("RecipeCatalog.lua:5:searchKey", fu
 end)
 
 A.invalidateRecipeCatalog = A.traceCallback("RecipeCatalog.lua:13:A.invalidateRecipeCatalog", function()
-    entries, cached = nil, nil
+    entries, cached, itemEntries = nil, nil, nil
 end)
 
 A.invalidateRecipeSearch = A.traceCallback("RecipeCatalog.lua:17:A.invalidateRecipeSearch", function()
     cached = nil
 end)
 
-local buildCatalog; buildCatalog = A.traceCallback("RecipeCatalog.lua:21:buildCatalog", function()
+local updateMetadata; updateMetadata = A.traceCallback("RecipeCatalog.updateMetadata", function(info)
+    local name, object = A.professionRecipeNames(info.spell, info.item)
+    local _, quality, icon, binding = A.professionItem(info.item)
+    local changed = info.name ~= name or info.object ~= object or info.quality ~= quality
+        or info.icon ~= icon or info.binding ~= binding
+    if changed then
+        info.name, info.object, info.quality, info.icon, info.binding = name, object, quality, icon, binding
+        info.searchName, info.sortName = searchKey(name), searchKey(object or name)
+        info.searchObject = object and searchKey(object)
+    end
+    return changed
+end)
+
+A.refreshRecipeItem = A.traceCallback("RecipeCatalog.refreshRecipeItem", function(item)
+    local affected = itemEntries and itemEntries[item]
+    if not affected then return end
+    local changed = false
+    for _, info in ipairs(affected) do
+        if updateMetadata(info) then changed = true end
+    end
+    if changed then cached = nil end
+    A.debugLog("catalog.item", "RecipeCatalog.refreshRecipeItem", item, #affected, changed)
+end)
+
+local buildCatalog; buildCatalog = A.traceCallback("RecipeCatalog.lua:45:buildCatalog", function()
     local index, metadata = {}, {}
-    for member, profile in pairs(A.db.professions) do
+    itemEntries = {}
+    for member in pairs(A.members) do
+      local profile = A.db.professions[member]
+      if profile then
         local professions = {}
         index[member] = professions
         for id, profession in pairs(profile.list) do
@@ -29,22 +56,25 @@ local buildCatalog; buildCatalog = A.traceCallback("RecipeCatalog.lua:21:buildCa
                 local key = spell .. ":" .. item
                 local info = metadata[key]
                 if not info then
-                    local name, object = A.professionRecipeNames(spell, item)
-                    local _, quality, icon, binding = A.professionItem(item)
-                    info = {spell = spell, item = item, name = name, object = object, quality = quality,
-                        icon = icon, binding = binding, searchName = searchKey(name), sortName = searchKey(object or name),
-                        searchObject = object and searchKey(object)}
+                    info = {spell = spell, item = item}
+                    updateMetadata(info)
                     metadata[key] = info
+                    if item > 0 then
+                        itemEntries[item] = itemEntries[item] or {}
+                        itemEntries[item][#itemEntries[item] + 1] = info
+                    end
                 end
                 recipes[#recipes + 1] = info
             end
             if #recipes > 0 then professions[#professions + 1] = {id = id, profession = profession, recipes = recipes} end
         end
+      end
     end
+    A.debugLog("catalog.build", "RecipeCatalog.buildCatalog")
     return index
 end)
 
-A.searchRecipes = A.traceCallback("RecipeCatalog.lua:47:A.searchRecipes", function(input, filters)
+A.searchRecipes = A.traceCallback("RecipeCatalog.lua:77:A.searchRecipes", function(input, filters)
     local query = searchKey(input):match("^%s*(.-)%s*$")
     local wanted, professionID, rarity, hideBound = filters.member, filters.profession, filters.rarity, filters.hideBound
     if cached and cached.query == query and cached.member == wanted and cached.profession == professionID
@@ -60,7 +90,7 @@ A.searchRecipes = A.traceCallback("RecipeCatalog.lua:47:A.searchRecipes", functi
             end
         end
     end
-    table.sort(members, A.traceCallback("RecipeCatalog.lua:63:callback", function(left, right)
+    table.sort(members, A.traceCallback("RecipeCatalog.lua:93:callback", function(left, right)
         if (left.online == true) ~= (right.online == true) then return left.online == true end
         return left.name < right.name
     end))
@@ -96,7 +126,7 @@ A.searchRecipes = A.traceCallback("RecipeCatalog.lua:47:A.searchRecipes", functi
           end
         end
     end
-    table.sort(results, A.traceCallback("RecipeCatalog.lua:99:callback", function(left, right)
+    table.sort(results, A.traceCallback("RecipeCatalog.lua:129:callback", function(left, right)
         return left.sortName < right.sortName or left.sortName == right.sortName and left.spell < right.spell
     end))
     cached = {query = query, member = wanted, profession = professionID, rarity = rarity,

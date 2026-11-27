@@ -1,5 +1,94 @@
 # Cambios
 
+## 0.2.1 — integración
+
+El llamado se puede lanzar antes de liberar espíritu. Se bloquea como fantasma tanto al abrir como al confirmar.
+
+## 0.2.1 — actualización del PR #16: bloquear posición del llamado
+
+- Añadir casilla en Opciones para impedir arrastre del botón Llamado a las Armas, conservando clic y tamaño. Desmarcada por defecto, persistente entre sesiones e incluida en Restablecer configuración.
+- Evitar que un intento de arrastre bloqueado abra el llamado. Ajustar altura de Opciones para contener nueva casilla y reset.
+- Verificación estática realizada e instalación previa comprobada con 40 SHA256 coincidentes. Nueva función enviada a QA del encargado mediante PR #16; sin merge o auto-merge. No se registra prueba real confirmada de esta casilla.
+
+## 0.2.1 — consolidación para PR #16, 26/11/2026
+
+- Reunir marco y banner Horda de ancho completo, calavera conservada y fondo rojo con emblema cubriendo el header; mantener posición de textos aprobados y menú dentro de la ventana.
+- Añadir eliminación de eventos desde tarjetas con confirmación y permisos; acciones verticales de cancelación/recuperación de pedidos, fecha original y sincronización AQ periódica; resaltar HOY con borde, fondo y etiqueta.
+- Documentación y criterios de verificación incluidos. Versión 0.2.1 conservada; comprobaciones estáticas realizadas. Instalación previa con 40 archivos verificados; pruebas visuales finales y multicliente pendientes. Commit y actualización del PR autorizados, sin merge o auto-merge. Entradas siguientes conservan el historial de implementación.
+
+## 0.2.1 — ajuste local: resaltar hoy en el calendario
+
+- Añadir borde dorado, fondo ámbar y etiqueta HOY a la celda del día actual. Diferenciar cuando hoy también está seleccionado y conservar el estilo de selección de otros días.
+- Sin cambios de fecha local, selección o eventos; sin timers nuevos. Verificación estática realizada, revisión visual pendiente. Sin instalación o publicación por este ajuste.
+
+## 0.2.1 — ajuste local: fondo completo de cabecera
+
+- Extender tela roja y emblema a todo el interior del header, eliminando la franja vacía y el recuadro inferior. Conservar marco, calavera y posición efectiva de ambos textos.
+- Usar texturas de fondo del mismo frame para no tapar la calavera. Sin cambios de altura del menú, datos o sincronización. Pendiente instalación y revisión visual; sin commit o publicación por este ajuste.
+
+## 0.2.1 — cambios locales: eventos y recuperación de pedidos
+
+- Añadir Eliminar evento en tarjetas futuras y vencidas, con permisos y confirmación existentes; revalidar contexto/revisión antes de borrar. Inscripciones vencidas conservadas en solo lectura.
+- Mostrar Recuperar pedido en copias propias recibidas de otros miembros y Cancelar pedido en toda tarjeta propia activa, con acciones verticales. Confirmación del propietario requerida antes de republicar; conservar ID/fecha y cierre sincronizado.
+- Mantener vencimiento de siete días y comprobarlo también al consultar capacidad de fabricación. Conservar cierres compartidos para no reabrir candidatos y rechazar que terceros publiquen OR como autor.
+- Repetir AQ cada 60 segundos mediante el ticker existente, conservando inicio 3/18, formatos y cola; mayor tráfico pendiente de medición. Pruebas reales multicliente pendientes.
+- Incluye corrección local pendiente del marco de Horda y menú. Sin instalación, commit o publicación por estos cambios.
+
+## 0.2.1 — cambio local: banner de la Horda
+
+- Conservar la calavera y añadir debajo marco superior de la Horda, tela roja, emblema lateral y textos centrados «Tartaro»/«For The Horde!».
+- Corregir el primer intento rechazado: marco superior de ancho completo con extremos/centro proporcionados y tramos planos extensibles del lado Horda. Restaurar cabecera a 132 y asegurar altura mínima según entradas del menú para mantener Opciones dentro.
+- Usar recursos nativos directamente, sin dependencia de Overlord o imágenes nuevas; alternativa si faltan atlas, sin timers o cambios de negocio.
+- Primer intento instalado para pruebas y rechazado por el usuario. Corrección comprobada estáticamente, pendiente instalación y revisión visual. Sin commit o publicación por este cambio.
+
+## 0.2.1 — commit local: llamado desde cadáver
+
+- Permitir preparar el llamado como fantasma usando exclusivamente coordenadas del cadáver y contexto de muerte observado en esta sesión; rechazar cuerpos de instancia, datos ausentes o cambios de estado/destino antes de enviar.
+- Identificar el cadáver en la confirmación. Conservar protocolo, permisos, llamado vivo, cooldown, duración y recepción. Sin temporizadores o SavedVariables nuevas.
+- Login/reload ya fantasma sin contexto de muerte: rechazo explícito. Verificación estática realizada; instalado posteriormente para pruebas con 40 archivos verificados por SHA256. Pruebas reales en Forever pendientes; sin publicación remota de este cambio.
+
+## 0.2.1 — ampliación local del 26/11/2026
+
+- Ventana: opción de mantener el centro horizontal y crecer hacia abajo, con persistencia propia de posición y coordinación con el apilado de avisos. Incluida en Restablecer configuración.
+- Miembros: columna Overlord e informes de versiones/fechas de ambos addons, con distinción entre estado confirmado e histórico y campos opcionales del protocolo V.
+- Miembros/Permisos: menú y acciones administrativas limitados a rangos 0/1 o rango 8 llamado exactamente Dev; sin autorización por modo debug.
+- Optimización de filas bajo demanda, catálogo por objeto/perfiles del roster, colas de envío y liberación de paquetes, mapa y limpieza de posiciones, transferencias vencidas, avisos ordenados y refrescos por datos/vencimientos. Reutilización de ofertas/asistencia y fichas del roster.
+- Diagnóstico: 17 llamadas evitan preparar datos costosos con debug apagado; registros de carga/errores/operaciones conservados. Las etiquetas de traza reflejan las líneas actuales.
+- Verificación estática: 19 módulos compilados con LuaJIT compatible Lua 5.1; XML, TOC/recursos y 40 archivos. Revisión de cableado sin conexiones obligatorias ausentes detectadas. Ejecución real y consumo siguen pendientes de validación; puntos 1/3/8 del plan parcialmente mitigados.
+- Entrega en commit local autorizado; sin publicación remota ni nueva instalación por el commit. Las entradas siguientes son el historial de implementación previo a su consolidación.
+
+## Cambio local en revisión — menú administrativo
+
+- Miembros y Permisos solo figuran en el navegador para rangos 0 y 1; el resto de entradas se compactan sin huecos. Se bloquean acceso y renderizado no autorizados.
+- Revalidación por roster/permisos, también desde Opciones. Al perder acceso se cierra el contenido administrativo y se vuelve a Inicio; acciones pendientes de Miembros revalidan autorización.
+- Sin excepción de desarrollador basada en debug, ni cambios de datos, protocolo o permisos de negocio. Pendiente prueba manual; sin commit, push o instalación de este filtro. Versión conservada 0.2.1.
+
+## Cambio local en revisión — Overlord y versiones en Miembros
+
+- Nueva columna Overlord con estado comunicado por el cliente: Cargado, Desactivado, Sin cargar, Instalado, No instalado, Sin datos o Histórico. Sin informe compatible no se afirma que esté ausente. Miembros se amplía para alojarla sin eliminar columnas.
+- Tooltip de fila con versiones de Tártaro y Overlord, fecha local del informe y distinción de dato local/remoto e histórico. Se conserva conexión del roster, clasificación y acciones.
+- Mensaje V ampliado con campos opcionales, compatible con lectores anteriores. Emisión automática al reconocer la hermandad, tras login/reload y a los 5 segundos; renovación cada 60 segundos sobre el request existente. Sin acciones manuales, temporizador nuevo o mensajes visibles adicionales.
+- Informes históricos persistentes; vigencia de 150 segundos con reloj monotónico y expiración independiente de otros mensajes de Tártaro. Solo se registra el remitente validado, con estado y versiones acotados.
+- Versión local 0.2.1 conservada; sin commit ni push, con reinstalación autorizada para pruebas. Verificación estática correcta; pendiente prueba manual en Forever.
+
+## Cambio local en revisión — anclaje opcional de ventana
+
+- Opciones: «Mantener centro horizontal y crecer hacia abajo», desmarcada por defecto. Conserva la posición del centro del emblema al navegar entre tamaños, con compensación de escala y apilado de avisos; sigue sujeto a los límites de pantalla.
+- El arrastre actualiza el punto de referencia. Desactivar recupera el tipo de anclaje previo en la posición visible; Restablecer configuración desactiva la preferencia. Sin nuevos módulos, temporizadores o mensajes.
+- Cambio posterior al commit 07155cd, sin commit ni publicación; instalación autorizada para pruebas, versión conservada 0.2.1. Verificación estática correcta; pendiente comprobación manual en Forever.
+
+## 0.2.1 — entrega local para pruebas
+
+- Mensaje del día una vez al día local o cuando cambia el contenido, con registro persistente por personaje/hermandad. Los popups no se reinician por /reload.
+- Avisos diarios de eventos pendientes solo en su fecha local; un recordatorio único en la ventana -30/+30 minutos, incluidos inscritos, sin doble popup al entrar directamente en esa ventana. Más de 30 minutos después no se muestra.
+- Popups y resumen local de eventos bloqueados en combate, mazmorra, banda, BG y arena. Avisos pendientes se reevalúan al salir; se conservan autorización, hora local y anuncios manuales UTC.
+- Resumen de eventos de hoy en chat local una vez por evento y carga, sin envío a hermandad. Calendario presenta todas las tarjetas del día por horario, sin selector, con fecha/conteo fijos y scroll solo de tarjetas; conserva foco y acciones por evento.
+
+- Separa la conexión de WoW de la presencia de Tártaro y conserva la detección histórica. Activo, Sin confirmar, Histórico y Sin detectar; tooltip con último mensaje recibido en hora local y registro local identificado para el propio personaje.
+- Caducidad de confirmación de 150 segundos con reloj monotónico en memoria; no reutiliza confirmaciones de una sesión anterior. Desconexión/cambio de hermandad invalidan la confirmación, sin borrar el historial.
+- Reutiliza mensajes y temporizadores existentes; sin tráfico periódico adicional. Refresco de Miembros al cambiar el estado, incluido vencimiento con la tabla abierta. Conserva orden histórico, susurro/invitación, permisos y protocolo.
+- Versión local 0.2.1 confirmada por el propietario. Verificación estática; pendiente comprobación manual en Forever. Commit local e instalación autorizados para pruebas; sin publicación remota.
+
 ## 0.2.0 — propuesta de integración
 
 - Inicio: acceso directo a pedidos por ID, resaltado/desplazamiento y aviso si dejaron de estar disponibles. Separación de pedidos propios y aquellos para los que el personaje se ofreció.

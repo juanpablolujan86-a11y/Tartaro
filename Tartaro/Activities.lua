@@ -109,9 +109,9 @@ A.publishGroup = A.traceCallback("Activities.lua:85:A.publishGroup", function(ac
     return A.groups[A.self]
 end)
 
-A.groupRemainingNeeds = A.traceCallback("Activities.lua:112:A.groupRemainingNeeds", function(group)
+A.groupRemainingNeeds = A.traceCallback("Activities.lua:112:A.groupRemainingNeeds", function(group, counts)
     if not group.slots then return group.needs end
-    local counts = A.groupAttendance(group)
+    counts = counts or A.groupAttendance(group)
     local needs = {}
     for index, role in ipairs(A.eventRoleOrder) do
         local missing = math.max(0, group.slots.roles[index] - counts[role])

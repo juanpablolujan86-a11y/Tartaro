@@ -546,3 +546,320 @@ El propietario confirma que la diferencia de hora observada correspondía a otro
 Se conservan las condiciones de inscripción, cambio de rol, baja, edición y acciones sobre participantes; los vencidos siguen sin controles. No cambian fechas almacenadas, anuncios UTC, agrupación local ni selección por clic. No se instala ni se interactúa con el juego. Verificación estática: compilación Lua 5.1, XML, caracteres, TOC y recursos; pendiente revisión visual y funcional en Forever, sin simulaciones ni afirmación de E2E.
 
 Autorizada la sustitución del commit local y remoto de la propuesta 0.2.0 manteniendo el mensaje original byte por byte. El push usa force-with-lease contra el SHA previamente observado de la rama de mejoras. El título y cuerpo originales del PR #15 se conservan; no se modifica main ni se ejecuta merge o auto-merge.
+
+## Presencia de Tártaro en Miembros — 25/11/2026
+
+Base main/44aa65e (0.2.0). El propietario autoriza mejorar la detección y ordena expresamente no realizar commit al terminar porque continuará con otros cambios. Posteriormente confirma 0.2.1 para esta revisión local; se actualizan TOC, LEEME y CHANGELOG. Implementación local sin commit, publicación ni instalación.
+
+Core.addonPresence devuelve un estado único para consumo de UI: Activo si el personaje está conectado y hay mensaje reconocido recibido hace menos de 150 segundos en esta sesión; Sin confirmar si está conectado y tiene detección histórica sin confirmación reciente; Histórico si tiene detección guardada sin conexión confirmada; Sin detectar si no existe registro. El personaje local conectado está activo por ejecución del propio addon. La conexión sigue dependiendo del roster de WoW y no se deduce del silencio de red.
+
+addonSeen conserva la fecha recibida mediante GetServerTime. sessionSeen guarda GetTime solo en memoria, sin migración ni cambio de SavedVariables o protocolo. No hereda actividad de la ejecución anterior. Los cambios de hermandad y las desconexiones observadas invalidan confirmaciones; el histórico no se borra. La recepción directa de cualquier acción reconocida renueva la confirmación, con registro presence.changed al cambiar el estado. No se replican detecciones de terceros ni se afirma poder certificar una instalación actual.
+
+Se reutiliza Q cada 60 segundos como mensaje periódico ya existente. El umbral de 150 segundos permite dos intervalos más 30 segundos de margen, sin garantía sobre entrega o cola. No se agregan mensajes, temporizadores, dependencias ni consultas adicionales al servidor. El ticker existente de UI comprueba cada 5 segundos solo con Miembros visible y solicita refresco únicamente al detectar cambio de estado frente al último render; abrir la vista calcula el estado actual. Caducidad lógica a los 150 segundos, presentación en el siguiente ciclo de UI y su agrupación de 0,08 segundos, sujeta a ejecución del cliente.
+
+La tabla conserva anchos, scroll, orden por conexión/nombre y opción de ordenar por detección histórica; verde queda reservado a Activo. Tooltip por fila con significado del estado y fecha/hora local del último mensaje; en la fila propia se identifica como registro local. El propio personaje no abre menú de acciones. Susurro/invitación mantienen las revalidaciones existentes. Se oculta el tooltip al salir, ocultar/reutilizar la fila o abrir su menú.
+
+Verificación: compilación sintáctica de 19 Lua con Lua 5.1 sin ejecución del addon; XML, caracteres, TOC y recursos correctos; 40 archivos instalables, 535 funciones instrumentadas y 21 llamadas protegidas. Revisado el diff conservando condiciones de permisos y transporte. No hay tests ni simuladores recreados. La comprobación manual en Forever no se ejecutó por la prohibición de controlar el cliente.
+
+Criterios manuales pendientes:
+
+- Con dos miembros conectados, recibir un mensaje del segundo debe mostrar Activo y una fecha real de recepción; no requiere compartir ubicación. El otro cliente mantiene su propia observación independiente.
+- Con el segundo conectado pero su addon sin emitir, dejar pasar 150 segundos: la tabla abierta debe pasar a Sin confirmar en el siguiente ciclo, sin cambiar Conectado ni borrar el último registro. Volver a recibir debe recuperar Activo.
+- Cerrar/reabrir la vista tras la caducidad debe calcular el estado actual, sin conservar el texto anterior por caché.
+- Tras observar desconexión: Desconectado e Histórico. Tras reconexión: no confirmar actividad hasta recibir un nuevo mensaje. Al reiniciar este cliente, los históricos remotos no pasan a Activo solo por cargar SavedVariables.
+- Personaje nunca detectado: Sin detectar; ausencia de datos de conexión: Sin datos. Ningún caso debe afirmar desinstalación por silencio.
+- Verificar legibilidad de las cuatro etiquetas, tooltip de fecha local, orden histórico en ambos sentidos y acciones de susurro/invitación. Cliente previo que emite Q/V/H debe seguir siendo detectado sin protocolo nuevo.
+
+Los plazos son decisiones de implementación aún pendientes de medición en Forever; no son resultados de una prueba E2E.
+
+## Avisos persistentes y tarjetas del día — 25/11/2026
+
+El usuario ordena mantener este trabajo en main local, como parte de 0.2.1, sin commit ni push. Solicita mensaje del día una vez por día o cambio de contenido, eventos solo en su fecha y un recordatorio adicional. Confirma explícitamente que el recordatorio puede aparecer hasta 30 minutos después del inicio. No hay duración en el modelo y no se añade: esa cifra define solo la ventana de aviso. Reitera que los mensajes no deben aparecer en combate, mazmorra ni banda.
+
+UI.lua mantiene notificationHistory por personaje dentro de la base de hermandad, con día local, último texto diario presentado y recibos de eventos del día. La visualización efectiva marca el recibo; no depende de cerrar la ventana y no se reinicia por /reload. El texto se compara por contenido, sin depender de la revisión del mensaje. Cambios A → B → A permiten volver a mostrarlo; vaciarlo no muestra popup y permite que un texto posterior vuelva a considerarse cambiado. La tabla diaria de eventos se renueva al cambiar de día, sin acumular días ilimitadamente.
+
+El aviso diario conserva el público anterior de eventos pendientes de inscripción, pero se limita a eventos de hoy que todavía no comenzaron. La ventana de recordatorio incluye desde 30 minutos antes hasta 30 después para todos, inscritos o no. Si el primer acceso es dentro de esa ventana, el recordatorio consume también el aviso diario para evitar dos popups consecutivos del mismo evento. Se conserva eventReminders por horario, compatible con los registros previos y sin repetición del mismo recordatorio al cruzar medianoche. Si cambian el horario se revalida la cola; no se repite el recordatorio de ese evento dentro del mismo día si ya se mostró.
+
+Se reutiliza el ticker de avisos de 5 segundos para detectar ventana de recordatorio y cambio de día. La cola descarta avisos cuyo evento desapareció, cambió de horario o salió de la ventana. Al empezar, el texto cambia de Empieza en a Comenzó hace; no afirma que el evento siga en curso. El historial de eventos vencidos y las reglas para inscribirse siguen sin cambios.
+
+Popups diarios y de eventos y resumen de chat bloqueados por combate real y tipos de instancia party/raid, independientemente de hideWindowsInCombat para el resto de ventanas. Se añaden PLAYER_ENTERING_WORLD y ZONE_CHANGED_NEW_AREA al observador existente de UI, sin reemplazar los eventos de combate. Se ocultan los avisos al entrar; los ya presentados siguen consumidos y no se reabren al salir. Lo no mostrado queda pendiente y no se consume dentro del bloqueo. Al salir se reevalúa; un evento que ya pasó la ventana no se anuncia tarde. El mensaje diario que ya había sido mostrado no se repite solo por salir de combate. Las reglas específicas de llamados y la visibilidad de otras ventanas se conservan.
+
+El resumen de chat usa print, no SendChatMessage: una línea por ID de evento de hoy y carga, en orden de hora, con hora local y título; incorpora registros que lleguen después por sincronización. No lista fechas futuras ni repite cada tick. Si la carga es dentro de un bloqueo, queda sin consumir hasta salir. Un día nuevo permite listar los eventos de ese día. No reinicia los recibos de popups ni modifica los anuncios manuales al crear eventos, que conservan UTC.
+
+Calendario reutiliza Calendar.group, ya ordenado por hora/ID, y renderiza todas las tarjetas del día, eliminando el selector. Día/conteo permanecen en la cabecera fija del componente existente, con el scroll aplicado solo al contenido de tarjetas y la cuadrícula inmóvil. Selección en la cuadrícula y navegación desde Inicio/aviso/guardado llevan la tarjeta correspondiente a la vista. UI guarda ese estado en el marco calendarPanel. RenderEvent mantiene literalmente el cuerpo de la tarjeta previa, salvo índice, resaltado y registro de posición: comparación estática de texto normalizado correcta para contenido, acciones, callbacks y permisos. Cada cierre usa el parámetro de su propio evento, sin reutilizar el seleccionado global como destinatario.
+
+La compilación detectó el límite de 200 variables locales de Lua 5.1 en UI.lua. Resuelto agrupando estado de notificaciones y almacenando el estado de presentación en el marco existente. No se añade módulo ni dependencia. La compilación posterior fue correcta. Las etiquetas de trazabilidad se ajustan a sus líneas actuales; notification.shown registra día, ID/horario y tipo al presentar un aviso. Debug sigue apagado por defecto.
+
+Verificación estática: 19 Lua compilados con Lua 5.1, XML/caracteres/TOC/recursos, versión 0.2.1 y 40 archivos instalables. Se conservan 535 funciones instrumentadas y 21 llamadas protegidas. Diff sin problemas de espacios. No se ejecuta el addon, simulaciones o pruebas de APIs inventadas; tests conserva únicamente los tres documentos previos. No se instala, publica ni crea commit o ZIP.
+
+Criterios de comprobación manual pendientes en Forever:
+
+- Cerrar mensaje diario y usar /reload: no repetirlo; cambiar contenido y día local: permitir un nuevo aviso. Repetir con dos personajes para comprobar registros independientes.
+- Evento para hoy a más de 30 minutos: aviso diario una vez si no está inscrito. Evento de otro día: sin popup diario. Inscrito: conserva ausencia del aviso de inscripción pendiente, pero recibe recordatorio.
+- En -30 minutos: un recordatorio adicional; cerrar y recargar sin repetir. Entrar por primera vez en -15, +0 o +20 minutos: solo recordatorio. Más de +30: ninguno. Revisar medianoche, cambio de horario y eliminación con avisos en cola.
+- Combate con la preferencia general en ambos estados, mazmorra y banda: no mostrar popups ni resumen de chat. Salir durante una ventana vigente permite pendientes; salir después no ofrece recordatorios caducados. Un aviso ya mostrado no vuelve a abrirse al salir.
+- Chat: una línea por evento de hoy por carga, también eventos ya comenzados o inscritos; nunca envío a la guild ni repetición por tick. Registros recibidos después se listan una vez. Entrada bloqueada difiere las líneas hasta salir.
+- Día con cero, uno y varios eventos: todas las tarjetas ordenadas; solo el cuerpo lateral se desplaza, fecha y cuadrícula fijas. Pulsar segundo evento y abrirlo desde Inicio o aviso enfoca su tarjeta. Comprobar inscripción/cambio/baja/edición en su evento correcto, permisos y vencidos de solo lectura con inscritos.
+
+Ningún criterio manual anterior se declara ejecutado. Implementación en revisión pendiente de uso real; se mantienen los cambios locales previos de presencia.
+
+
+## Extensión del bloqueo de avisos a BG y arenas — 25/11/2026
+
+Por autorización expresa, daily.NotificationsBlocked incluye IsInInstance con tipos pvp y arena, además de party/raid y combate. El cambio se aplica mediante el guard compartido a los popups diarios y de eventos, resumen local de chat y ocultación al cambiar de zona. Se conservan las ventanas temporales, los recibos persistentes y las reglas de avisos pendientes. No cambia los llamados ni las demás ventanas. Main local 0.2.1, sin commit, push o instalación.
+
+Verificación de sintaxis Lua 5.1 y recursos; pendiente comprobación manual dentro y fuera de BG/arenas, también sin combate. Debe impedir mostrar/consumir avisos pendientes dentro y reevaluarlos al salir si siguen vigentes. No se ejecutó el cliente ni simulaciones.
+
+
+## Commit local e instalación autorizados — 25/11/2026
+
+El usuario autoriza commit local en main de los cambios acumulados 0.2.1 y posterior copia a Forever para sus pruebas. Esta instrucción reemplaza la restricción temporal de no hacer commit; no autoriza push, merge remoto o publicación. Se conserva el historial de desarrollo anterior. Antes de copiar se comprueban sintaxis Lua 5.1, XML, caracteres, TOC/recursos y diff. La copia se verifica archivo por archivo con SHA256 y conteo exacto, sin interacción con el juego ni cambios a SavedVariables. No se crean backups o ZIP. El SHA del commit y resultado real de la instalación se registran después en el resumen de sesión del workspace; las pruebas dentro del cliente siguen pendientes del usuario.
+
+
+## Anclaje opcional con emblema fijo — 25/11/2026
+
+El usuario pide una casilla en Opciones, desmarcada por defecto, sin modificar el comportamiento predeterminado. Al activarla, la ventana debe conservar el centro horizontal y crecer hacia abajo manteniendo el emblema en su sitio; no se interpreta como mantener el centro geométrico de toda la ventana. Trabajo sobre main local/07155cd, versión 0.2.1 conservada, sin commit, push o instalación de esta revisión.
+
+UI.lua añade centerWindowOnResize en SavedVariables solo al interactuar con el control; nil y false mantienen la ruta anterior de anclaje, escalado y posición de avisos. El control aparece debajo de la opción de combate y desplaza Restablecer configuración dentro del panel existente. sync restaura su estado visual; Restablecer elimina la preferencia y el estado transitorio.
+
+CaptureResizeOrigin y ApplyResizeOrigin son métodos del marco principal, sin nuevas variables locales de nivel superior. Capturan el centro real de skullArt y lo convierten a unidades de UIParent mediante la escala efectiva. Al redimensionar se conserva ese punto, ajustando el anclaje TOP al desplazamiento del centro de la textura. El ajuste posterior de escala sigue respetando esa referencia. Se guarda el tipo de anclaje anterior para recuperarlo al desactivar, sin volver a coordenadas antiguas que provocarían un salto deliberado de posición.
+
+El arrastre marca estado transitorio para que las actualizaciones de avisos no vuelvan a fijar el punto anterior mientras se mueve. Al terminar se captura la ubicación nueva y se normaliza TOP solo si está activa la preferencia. El arrastre del grupo de avisos actualiza la misma referencia. Con avisos visibles, el origen superior del grupo se calcula a partir del emblema para que el cambio de tamaño no lo desplace, conservando orden y ajuste de escala. Se mantienen las restricciones de pantalla: cerca de un borde, el clamp puede desplazar la ventana o el grupo para permitir su visualización. No se promete invariancia física cuando el conjunto no cabe.
+
+Verificación estática: compilación de 19 Lua con Lua 5.1, XML, caracteres, TOC y recursos; 40 archivos instalables; 538 funciones instrumentadas, 21 llamadas protegidas; sin errores de diff. Se revisó la ruta por defecto para conservar las expresiones originales de colocación y para retornar de los métodos nuevos antes de alterar el marco cuando la preferencia no es true. No se ejecutó WoW, código del addon o simulaciones. No se recrearon tests.
+
+Pendiente revisión manual: casilla inicial desmarcada; navegación Inicio/Buscar recetas/Calendario en ambos estados; crecimiento horizontal simétrico y hacia abajo con emblema fijo; arrastre libre y con avisos; comprobación tras cambios de escala efectiva/resolución; límites de pantalla; desactivar sin salto atribuible a restaurar coordenadas antiguas; persistencia de casilla por reload y Restablecer. Validar que el nuevo control y el botón de restablecimiento caben en Opciones y que los avisos conservan sus reglas de frecuencia y bloqueo.
+
+
+## Instalación autorizada del anclaje opcional — 25/11/2026
+
+El usuario solicita instalar la copia local con la casilla Mantener centro horizontal y crecer hacia abajo, expresamente sin commit ni push. Versión declarada conservada en 0.2.1 y base local 07155cd; cambios posteriores permanecen sin commit. Verificación previa de sintaxis Lua 5.1, XML, caracteres y TOC/recursos. La copia se comprueba por SHA256 archivo por archivo y conteo exacto; resultado real en el resumen de sesión del workspace. Sin controlar el juego, cambiar SavedVariables, generar ZIP o backups. La casilla queda desmarcada por defecto; activación y validación visual corresponden a las pruebas del usuario.
+
+
+## Overlord y versiones por personaje en Miembros — 25/11/2026
+
+El usuario solicita detectar Overlord, añadirlo como columna de Miembros y mostrar las versiones instaladas en el tooltip de Tártaro/Overlord. También solicita comprobar y aprovechar un mensaje automático al iniciar sesión o hacer /reload. Trabajo local sobre main/07155cd, conservando la opción de anclaje y versión 0.2.1. No se autoriza commit, push o instalación de esta revisión.
+
+Evidencia previa: Core.refreshRoster ya llama shareVersion al reconocer hermandad; replay también la llama ante Q; PLAYER_LOGIN solicita datos y programa request a los 5 segundos y cada 60 segundos. Se amplía request para anunciar versión/estado de forma autónoma, sin depender de recibir una Q ajena ni de una acción manual. La cola existente deduplica paquetes idénticos; no se añade ticker ni mensaje visible de chat. Comunicación interna GUILD con prefijo TARTARO01, sujeta a validación de guild y bloqueos/reintentos de transporte existentes. Datos del personaje siguen obteniéndose del roster y del rol H ya implementado, sin duplicarlos en el paquete.
+
+Version.lua consulta únicamente el addon local llamado Overlord: DoesAddOnExist, alternativa GetAddOnInfo, GetAddOnMetadata y IsAddOnLoaded, más GetAddOnEnableState si no está cargado. Se conserva compatibilidad con funciones globales antiguas y el orden de argumentos distinto de GetAddOnEnableState. Se distingue loadedOrLoading/loaded cuando IsAddOnLoaded devuelve dos valores; el primer valor se acepta solo si no existe el segundo. No se carga, habilita, modifica ni inspecciona la base privada de Overlord.
+
+Firmas contrastadas con el código de documentación de Blizzard publicado en https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/AddOnsDocumentation.lua y usos instalados de C_AddOns.GetAddOnEnableState en AtlasLootClassic y BugGrabber. Esto no constituye validación ejecutada de las APIs dentro de Forever.
+
+Formato ampliado V, separado por tabulaciones: acción, versión Tártaro, estado Overlord, versión Overlord. Estado enum L=cargado, D=desactivado, E=habilitado sin cargar, I=instalado con activación desconocida, N=no reconocido como instalado, U=sin consulta concluyente. El campo Overlord admite hasta 32 caracteres alfanuméricos/punto/guion/guion bajo; Tártaro mantiene el parser numérico existente. El paquete máximo con versión Tártaro de 11 caracteres ocupa 48 bytes, bajo el límite de 250. Los lectores anteriores usan solo el primer campo de versión; los emisores anteriores permiten guardar su versión Tártaro pero no generan un estado negativo ficticio de Overlord.
+
+Core entrega el remitente validado a receiveVersion. memberAddons conserva por personaje versión Tártaro, estado/versión Overlord y fecha real de comprobación o recepción. No se aceptan identidades declaradas por terceros ni se retransmite un censo histórico. La confirmación por informe usa GetTime en memoria y el mismo límite de presencia de 150 segundos mediante addonPresence con instante opcional. Otros mensajes pueden renovar Tártaro pero no el informe de Overlord. El cambio de sesión/hermandad o una desconexión observada invalida la confirmación. El histórico persiste y no acredita estado actual.
+
+Miembros incorpora una sexta columna de 110 unidades con estados legibles. Conserva las primeras cuatro columnas, amplía Tártaro y fija extremos 10/164/207/367/470/580/690; ancho de contenido 690 y ventana 892, sin cambiar el tamaño de otras áreas. Cabecera y controles siguen fijos y solo se desplazan filas. El orden histórico por detección Tártaro y los menús autorizados se conservan. El tooltip separa actividad Tártaro de carga Overlord, muestra ambas versiones y fechas y aclara lo local, lo comunicado y lo histórico. No instalado solo se muestra ante N vigente; falta de informe se presenta como Sin datos. Cargado no garantiza funcionamiento completo de Overlord.
+
+El ticker de Miembros ya existente compara presencia y vigencia del informe para actualizar caducidad sin redibujar cada cinco segundos cuando no cambia el estado. La recepción registra addons.report e invalida la vista solo al cambiar campos o recuperar vigencia. Debug permanece apagado por defecto. La advertencia existente de versión nueva de Tártaro se conserva.
+
+Verificación estática: compilación de 19 Lua con Lua 5.1, XML, caracteres, TOC/recursos y 40 archivos instalables. 542 funciones instrumentadas y 21 llamadas protegidas. Revisado el orden de carga Version antes de UI y antes de PLAYER_LOGIN; métodos definidos antes de su ejecución por eventos, y máximo de locales aceptado por el compilador. No se ejecutó el addon ni simulaciones, no se recrean tests y no se controla WoW.
+
+Pendiente comprobación manual con dos miembros: anuncio sin interacción tras login/reload, arranque con roster pendiente, V periódico y recepción diferida; Overlord presente/cargado, desactivado, habilitado sin cargar y ausente; versión y fechas en ambas filas; cliente antiguo con Sin datos y versión Tártaro disponible; desconexión/reconexión, reload del observador y caducidad del informe mientras llegan otros mensajes. Comprobar columna, tooltip, orden, cabecera/scroll y susurro/invitación, así como anclaje opcional al ampliarse Miembros. Usuarios sin Tártaro compatible no pueden declarar sus addons mediante esta característica. No se promete un tiempo máximo de entrega de red.
+
+
+## Reinstalación de archivos desde carpeta ausente — 25/11/2026
+
+El usuario elimina la carpeta de Tártaro instalada y autoriza instalar desde cero los archivos actuales, incluida la columna Overlord y versiones. Se confirma que el destino Tartaro no existe antes de crearlo. Fuente 0.2.1 sobre main/07155cd con cambios posteriores sin commit; sin commit ni push de esta instalación. Comprobación previa correcta de 19 Lua con Lua 5.1, XML, caracteres, TOC y recursos. La copia se verifica por SHA256 y conteo exacto; resultados y hashes en el resumen de sesión del workspace. No se elimina ni modifica SavedVariables: instalación limpia de archivos, sin reiniciar datos guardados. Sin interacción con el cliente, ZIP o backups; validación en Forever pendiente del usuario.
+
+
+## Acceso administrativo en el navegador — 25/11/2026
+
+El usuario solicita que Miembros y Permisos no aparezcan en el menú sin autorización. Se utiliza la regla administrativa existente canManagePermissions: base de hermandad disponible y miembro de rango 0 o 1. No se define por cuenta propia una identidad de desarrollador ni se acepta debug como autorización. La optimización de retención/transporte no forma parte de esta corrección y no se asegura ningún ahorro de memoria cuantificado.
+
+La tabla de pestañas declara el predicado existente para ambas áreas. Sus botones nacen ocultos cuando no hay autorización y el callback revalida antes de seleccionar la página. RefreshNavigation usa esa misma declaración para mostrarlas o excluirlas y recolocar solo las visibles a intervalos de 32, sin huecos. Al revocar acceso con una de esas páginas activa, pone Inicio, oculta filas y cabecera anteriores, cierra tooltip y restablece el scroll. A.refresh vuelve a filtrar antes de renderizar; ambos renderizadores administrativos retornan antes de construir contenido si no están autorizados.
+
+A.invalidate actualiza navegación al recibir roster/permisos y conserva una marca navigation en el lote pendiente. Así el menú también se actualiza cuando Opciones está visible y la redirección fuerza el refresco de Inicio aunque no fuera una sección dependiente de permisos. Se utiliza el temporizador agrupado existente de 0,08 segundos, sin otro ticker ni cambios de red. Las acciones/tooltip de filas de Miembros comprueban administración nuevamente a través de currentMember; los cambios de grants conservan además la validación existente de Core.setGrant.
+
+No se elimina A.members, A.ranks, db.grants ni informes históricos y no se altera su sincronización. Las otras pestañas mantienen orden y disponibilidad. La memoria no fue medida dentro de Forever; excluir entradas evita abrir esas vistas, pero no descarga el módulo UI ni garantiza ahorro de varios MB.
+
+Verificación estática: Lua 5.1, XML/caracteres/TOC/recursos y diff. No se ejecutó el addon, simuladores ni cliente. Pendiente prueba manual: rangos 0/1 ven y utilizan ambas áreas; rangos restantes no ven entradas y el menú no tiene huecos; ganancia/pérdida de rango con Inicio, Opciones, Miembros o Permisos abiertos; revocación con tooltip o menú de miembro abierto; datos de guild pendientes/salida de guild; demás páginas sin cambios. Debug activado no debe conceder acceso. Main local 0.2.1 sin commit, push o instalación de esta revisión.
+
+Instalación autorizada posterior — 25/11/2026: copiados los 40 archivos de Tartaro/ a C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro; versión declarada 0.2.1. Todos coinciden con la fuente por SHA256 y no hay archivos adicionales. UI.lua SHA256 B42E065F93EA29605438EC7DBD42BB2EAD32E42213BBC251079A04C378FAF03B. Sin borrar archivos, respaldos, ZIP, commit, push o interacción con WoW. Pendiente comprobación manual del usuario.
+
+## Autorización administrativa de Dev — 25/11/2026
+
+El usuario solicita identificar el número del rango Dev y añadirlo. Lectura sin ejecución de WTF/Account/ARCANISGK/SavedVariables/Tartaro.lua: Tartaro-pty contiene Dev como octava entrada implícita de grants (índice 8); otra guild guardada contiene Addon en ese índice. Core escribe grants por índice de rango y el roster establece rank/rankName. Se añade a canManagePermissions la conjunción rank == 8 y rankName == "Dev", conservando 0/1. No se usa nombre de personaje ni modo debug. La misma regla protege menú, contenido y acciones administrativas, setGrant, recepción de R y replay de grants. No se modifican otros permisos ni eventos. Datos persistidos no equivalen a consulta en vivo del roster. Clientes anteriores no aceptan al nuevo administrador hasta incorporar la política.
+
+19 Lua compilados sin ejecución con Lua 5.1, XML, caracteres, TOC/recursos de 40 archivos y diff correctos. Pendiente prueba manual con Dev 8, otros rangos, cambio de rango/nombre y sincronización de permisos entre clientes actualizados. Sin commit, push ni instalación de esta ampliación; versión local 0.2.1.
+
+Instalación posterior de acceso Dev autorizada el 25/11/2026: versión 0.2.1 copiada a C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro. 40 archivos coinciden por SHA256, sin extras; Core.lua SHA256 469530C8909BE59407129C2F272D75A883FE46788DAC6EC7DAC98A93243BAF52. HEAD conservado. Sin commit, push ni interacción con el cliente; pendiente prueba manual del usuario.
+
+## Persistencia de la ventana principal — 25/11/2026
+
+El usuario reporta pérdida de posición tras actualizar y autoriza corregirla. El código anterior conservaba resizeOrigin solo en memoria y aplicaba SetUserPlaced(false) en el modo centrado; no existía una posición propia de la ventana principal en TartaroDB. Lectura de archivos: centerWindowOnResize estaba activado y layout-local.txt de Arcanisgk-Pty no contenía TartaroWindow. No se reconstruye una ubicación anterior desconocida ni se atribuye borrado de configuración a la instalación: la copia anterior se limitó a los archivos del addon.
+
+UI.lua incorpora SavePosition/RestorePosition sobre TartaroDB.windowPosition. Guarda el punto de anclaje, coordenadas normalizadas según escala/dimensiones de UIParent y coordenadas del centro del emblema. El modo predeterminado restaura el anclaje existente; el centrado restaura el emblema y mantiene el crecimiento horizontal simétrico/hacia abajo. Mantiene SetClampedToScreen y sus límites, que pueden desplazar una ventana para conservarla visible.
+
+La restauración ocurre en PLAYER_LOGIN y se comprueba desde A.refresh; valida tipo de tabla, anclaje y números finitos. Si aún no hay dimensiones utilizables, permite reintento. Sin registro válido deja el posicionamiento disponible (predeterminado o del cliente), sin inventar una migración desde noticePosition. Guarda después de arrastre, OnHide, PLAYER_LOGOUT y cambio deliberado de la preferencia. Antes de apilar se guarda la ubicación independiente; durante el apilado no se sobreescriben sus coordenadas con las del conjunto temporal. Para el modo centrado se conserva la referencia de emblema estable; arrastrar el conjunto actualiza esa referencia. CaptureResizeOrigin evita recapturar una posición temporal apilada salvo movimiento explícito. Restablecer configuración limpia windowPosition junto con las opciones anteriores. No se añaden temporizadores, módulos o mensajes de red.
+
+La autorización se limita al desarrollo local; no se instala, hace commit ni push. Versión conservada 0.2.1. Se mantienen las optimizaciones previas de filas y catálogo. No se modifican archivos WTF/SavedVariables desde fuera del cliente.
+
+Verificación: compilación estática de los 19 Lua con Lua 5.1, XML, caracteres, TOC/recursos y 40 archivos; etiquetas numéricas de traza actualizadas, 552 funciones instrumentadas y 21 llamadas protegidas; diff revisado. Sin ejecución del addon, simuladores ni interacción con WoW. Pendiente revisión manual: mover y cerrar/reabrir; reload y cierre completo/reapertura; ambos modos, navegación entre tamaños, alternar preferencia con avisos presentes/ausentes, arrastrar el conjunto, ocultamiento/restauración por combate, reset y límites de pantalla. Sin posición propia previa, colocar la ventana una vez; no se puede restaurar una ubicación histórica no guardada.
+
+Instalación posterior autorizada de la corrección de posición — 25/11/2026: versión 0.2.1 copiada a C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro. Los 40 archivos coinciden por SHA256 con la fuente y no hay archivos adicionales. UI.lua: 94BD12C47A5D0AA8C03E3F18A28DDC016552ABB116EA251536D910E1FB923F72. HEAD conservado; sin commit, push, ZIP, respaldos, borrados, modificación externa de SavedVariables o interacción con el cliente. Pendiente comprobación manual del usuario.
+
+
+## Llamado desde el cadáver — 26/11/2026
+
+Implementación local autorizada posterior a 84baf3c. Se retira únicamente el rechazo incondicional de fantasma; el origen pasa a la posición real del cadáver obtenida por C_DeathInfo.GetCorpseMapPosition. Vivo y muerto sin liberar conservan el flujo previo de posición del personaje.
+
+Map.lua registra en memoria el contexto de PLAYER_DEAD (A.db, IsInInstance y mapa), lo limpia al resucitar o entrar vivo y exige el mismo contexto de hermandad. No persiste datos ni conserva coordenadas aproximadas al morir. La consulta intenta el mapa registrado y hasta tres padres, con detección de ciclos y validación numérica/no secreta; acepta el vector de la API y el retorno de dos números contemplado por ForeverDungeonJournal instalado. Errores de consultas se capturan mediante debugPcall; no hay sustitución por fantasma/cementerio. No se añade dependencia de esos addons.
+
+La confirmación muestra «la ubicación de tu cadáver» seguida de zona/coordenadas. Al aceptar se revalidan permisos e instancia y se rechaza un cambio entre vivo/fantasma. Para cadáver se vuelve a consultar y se compara mapa/coordenadas con la precisión existente de transmisión (cinco decimales): un destino diferente exige abrir otra confirmación. CTA, recepción, sonido, chat, marcador, cooldown de 30 segundos y duración de 300 segundos conservados. La procedencia del cadáver es una distinción local de confirmación; no se añade un campo remoto.
+
+Limitación deliberada: si el addon no observó la muerte en esta sesión (incluido reload/login estando fantasma), no hay prueba del contexto original y el llamado se rechaza con explicación. IsInInstance del fantasma por sí solo no permite concluir dónde está el cuerpo. Un cadáver conocido dentro de una instancia siempre se rechaza. Si la API no proporciona el cadáver en los mapas consultados, no se envía. No se promete cobertura de todos los mapas.
+
+Criterios pendientes de verificación manual, a ejecutar por el usuario:
+
+1. Mundo abierto, con permiso: morir y liberar sin reload; confirmar que zona/coordenadas y marcador recibido corresponden al cuerpo y no al cementerio/fantasma. Cancelar no debe emitir CTA.
+2. Sin permiso, en instancia o cuerpo de instancia con fantasma fuera: rechazo sin envío. Conservar cooldown y cierre del llamado existente.
+3. API sin posición válida o entrada/reload ya fantasma: mensaje explicativo, sin llamado ni ubicación alternativa.
+4. Abrir confirmación como vivo y liberar, o abrirla como fantasma y resucitar: rechazo al aceptar. Si cambia la ubicación del cuerpo, exigir nueva confirmación.
+5. Llamado vivo y muerto sin liberar: conservar posición confirmada y comportamiento previo. Clientes anteriores deben recibir CTA sin cambio de formato.
+6. Con debug activo, revisar consultas/capturas y errores reales; con debug apagado no activar registros. Sin certificación hasta comprobarlo en Forever.
+
+Verificación local: compilación estática de 19 módulos con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres, etiquetas de línea y diff. Cobertura estructural actual: 565 funciones propias instrumentadas y 24 llamadas protegidas. No se ejecutaron addon, simulaciones ni APIs de WoW. Sin commit, push, actualización de PR, ZIP o instalación por esta implementación.
+
+
+Instalación posterior autorizada — 26/11/2026: la implementación local de llamado desde el cadáver (0.2.1, posterior a 84baf3c y sin commit) se copió en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`. Los 40 archivos coinciden con la fuente por SHA256; sin extras, borrados, respaldos o ZIP. HEAD conservado; sin push, modificación del PR ni interacción con el cliente. Pendiente prueba funcional por el usuario; coincidencia de archivos no certifica ejecución.
+
+
+Consolidación posterior autorizada — 26/11/2026: nuevo commit local sobre 84baf3c, conservando 0.2.1 e incluyendo implementación, límites, verificación estática y evidencia de instalación anteriores. El usuario autorizó posteriormente publicarlo en la rama del PR #16 si continúa abierto, con actualización descriptiva y sin merge ni auto-merge. Se comprobó abierto y sin integrar antes de operar. Sin nueva instalación. El commit que contiene esta anotación identifica la entrega. Las pruebas dentro de Forever siguen pendientes.
+
+
+## Banner de la Horda — 26/11/2026
+
+**Historial del primer intento:** el usuario rechazó el marco reducido y reportó «Opciones» fuera de la ventana en la captura posterior. La corrección vigente se describe al final de esta sección; las dimensiones y atlas del primer intento siguientes no describen el diseño corregido.
+
+El usuario aportó referencias de un estandarte rojo con emblema lateral y marco superior de la Horda y confirmó expresamente conservar la calavera. Implementación independiente en UI.lua sobre 2e89fa8: calavera intacta (142 x 145, anclada al mismo punto), ornamento superior nativo debajo de ella y banner rojo con «Tartaro»/«For The Horde!» centrados. Los recursos se identificaron leyendo Overlord/UIShared.lua y GroupFinderUI.lua instalados; no se copian funciones, archivos ni se añade dependencia de Overlord.
+
+Diseño: marco metálico de facción sobre tela roja, emblema lateral proporcionado y dos líneas en fuentes nativas GameFontNormalHuge/GameFontNormalLarge. Paleta de alternativa: rojo profundo #3D0405, sombra #1F0203, borde dorado #A87530, título #FFD147 y lema #FFDEA6. La calavera sigue siendo el elemento principal y la referencia de posición/crecimiento de la ventana.
+
+Recursos del cliente: C_Texture.GetAtlasInfo para HordeScenario-TitleBG (parte superior con proporción conservada, ancho máximo 300 y alto máximo 52) y archivo compartido referenciado por AllianceScenario-TitleBG (contiene también la tela roja de Horda). La tela se separa en emblema y tramo plano: el tramo se estira con el ancho de la ventana y el emblema mantiene su proporción. Si no hay atlas, se mantiene fondo rojo y emblema nativo Interface/Timer/Horde-Logo; no se inventa una ruta de textura propia ni se aborta la carga por atlas ausente. Las dos consultas usan debugPcall.
+
+El banner ocupa 64 px, con margen lateral de 16 px, debajo del ornamento y separado del contenido. La reserva de cabecera aumenta de 132 a 194; anclajes del menú, tablas, opciones, calendario, recetas y tamaño total siguen usando la variable compartida headerHeight. El código se construye una vez, sin eventos adicionales, callbacks, animaciones o timers. No cambia drag, persistencia, llamados, permisos o datos de negocio. No hay nuevos archivos gráficos distribuidos.
+
+Verificación estática: 19 módulos compilados con LuaJIT compatible Lua 5.1, XML, TOC/40 archivos, caracteres, etiquetas de línea, trazabilidad y diff --check. 565 funciones instrumentadas y 26 llamadas protegidas. Sin ejecutar el addon, simulaciones o interacción con WoW. Pendiente validar visualmente la disponibilidad/recorte de los atlas en Forever y la composición: sin colisión de calavera, marco, títulos o botón de cierre; ancho mínimo, calendario, opciones, cambio de tamaño y límites de pantalla. No se presenta como un resultado visual comprobado.
+
+Cambios locales sin commit, push, modificación del PR #16 o instalación; versión conservada 0.2.1.
+
+
+Instalación posterior autorizada del banner — 26/11/2026: Tartaro 0.2.1 con cambios locales posteriores a 2e89fa8 copiado en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`. Verificados 40 archivos coincidentes por SHA256, sin extras, borrados, respaldos o ZIP. UI.lua: `8D302592FCBC498CA74B63332F8CBC813990E8518D5AD681DFF5726D6FE0E97B`. Sin commit, push, cambio al PR o interacción con el cliente. Pendiente revisión visual y funcional por el usuario.
+
+
+### Corrección del marco y del menú — 26/11/2026
+
+Captura aportada por el usuario: el recorte de HordeScenario-TitleBG quedó como adorno pequeño bajo la calavera; no correspondía al marco superior solicitado. La cabecera ampliada de 194 desplazó el navegador sin aumentar la altura fija de Inicio (497), dejando Opciones fuera. No se hizo commit o actualización del PR antes de la interrupción; HEAD sigue en 2e89fa8.
+
+Corrección local: sustituir el adorno por el atlas perks-theme-hordevsalliance-tp-topbig identificado en el código instalado de Overlord. Se utiliza solo el lado Horda y su reflejo: seis texturas para dos extremos, dos mitades centrales y dos tramos planos. Los extremos y el centro mantienen proporción; solo los tramos planos se anclan por ambos bordes para ajustarse al ancho. Calavera en capa superior sin cambio de posición, tamaño, límites o referencia de persistencia. El marco se coloca sobre el borde superior de la ventana, sin un segundo adorno pequeño debajo de la calavera.
+
+Restaurar headerHeight a 132, banner a 56 px con top en -70 y emblema proporcionado; título y lema centrados en dos líneas. La altura mínima del navegador se calcula como headerHeight + 16 + entradasVisibles*32 + 14. El redimensionado de las vistas incluye ese mínimo, y cambios de ese valor invalidan el layout. Esto cubre tanto la disposición actual como cambios de disponibilidad del menú. Sin nuevos eventos, timers o dependencias.
+
+Verificación estática: compilación de los 19 Lua con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres, etiquetas, 565 funciones/26 llamadas protegidas y diff --check. Cálculo de márgenes de navegación para 8 y 10 entradas; no equivale a render dentro del cliente. Pendiente comprobar marco, calavera, textos, mínimos/máximos de ancho, navegación completa y escalas dentro de Forever. Corrección aún sin instalar, commit, push o modificación del PR.
+
+
+## Eventos, pedidos y recuperación — 26/11/2026
+
+Autorización del usuario para resolver eliminación de eventos, vencimiento/cancelación de pedidos y recuperación desde otro miembro, incluyendo la corrección de diseño pendiente. Código modificado: UI.lua y Orders.lua; correcciones de banner/menú previas conservadas. Sin nueva instalación, commit, push o modificación del PR.
+
+### Eventos de Calendario
+
+Las tarjetas futuras y vencidas incluyen Eliminar evento para quien cumple A.canEditEvent (autor o rangos 0/1). Se comparte la confirmación con el editor mediante win.ConfirmDeleteEvent, sin abrir el editor para borrar desde tarjeta. La aceptación comprueba la misma A.db y revisión del evento; si cambió o desapareció exige nueva confirmación. A.deleteEvent conserva validación de permiso y emisión K con registro de eliminación, borrado de inscripciones/recordatorios y recuperación de cierres existente. Se cierra el editor solo si correspondía al evento eliminado. Los eventos vencidos mantienen participantes e inscripciones en solo lectura; el borrado autorizado es la única acción nueva.
+
+### Pedidos y caducidad
+
+La caducidad existente es siete días desde la fecha codificada en el ID, sin renovarse al recibir, recuperar o cerrar. orderOwner se usa en recepción, listados y acciones; ahora también en canCraftOrder para no dar por fabricable un pedido vencido al consultar esa capacidad. La limpieza existente purga pedidos, copias, cierres y ofertas; el refresco por vencimientos existente sigue retirando tarjetas. No se crea una segunda regla temporal. El vencimiento visual puede esperar al siguiente refresco existente y la limpieza física a su ticker de 60 segundos.
+
+Las tarjetas propias muestran las acciones una debajo de otra: Recuperar pedido para copia no confirmada o Marcar como completado para pedido autoritativo, y Cancelar pedido en ambos casos. Solo su propietario puede efectuar estas operaciones; se comprueban identidad del objeto en el estado vigente, ID válido y vigencia. Una copia no confirmada no puede completarse sin recuperarla antes. Cancelar una copia propia emite el cierre OR con el mismo ID desde el verdadero propietario y guarda el cierre; recuperar emite OR abierto y conserva ID, fecha, contenido y ofertas disponibles. Un fallo al encolar no promueve ni cancela el candidato local.
+
+### Recuperación y sincronización
+
+Antes OC rechazaba owner==A.self, impidiendo recibir copias de un pedido propio perdido. Ahora esas copias se conservan en orderPreviews con unverified/sharedBy y se muestran al propietario como pendientes de recuperar o cancelar. No se convierten automáticamente en pedidos activos autoritativos, no se retransmiten desde el autor como OC y no se amplía la facultad de terceros de publicar OR: su remitente sigue debiendo coincidir con el propietario del ID.
+
+OX de terceros puede retirar un candidato propio no confirmado y conservar marca orderCopyClosed para impedir que una OC abierta vieja lo haga reaparecer. Si existe un pedido propio autoritativo, OX ajeno no lo modifica. La marca de tercero no se transforma automáticamente en OR de cierre emitido por el propietario. Otros flujos de copias/cierres se conservan. La recuperación se rechaza si existe cierre conocido, registro autoritativo o vencimiento; no se generan un ID nuevo o una semana nueva.
+
+Se mantiene el arranque AQ a 3/18 segundos y se agrega solicitud cada 60 segundos desde el ticker de pedidos ya existente. requestedAt se reinicia con el contexto y solo avanza al encolar AQ, salvo el establecimiento inicial de espera. Respuestas conservan jitter, cola y ritmo existentes. No hay nuevo protocolo, SavedVariables o timer; sí mayor tráfico de consulta/respuestas, cuyo costo con varios clientes no se ha medido. No se garantiza recibir una copia en 60 segundos: depende de disponibilidad del compañero, estado conservado, colas y entrega real. Pedidos vencidos o no conservados por ningún cliente no se pueden recuperar con este mecanismo.
+
+Se contrastaron las funciones orderPacket/previewPacket con la base 0.2.0 del commit 44aa65e: campos OR/OC conservados. Esto verifica compatibilidad de formato de ese código, no la versión real o entrega del cliente del compañero. No se atribuye la pérdida de datos al borrado de Interface/AddOns: no se inspeccionó ni modificó su historial de SavedVariables.
+
+### Diseño incluido y verificación
+
+Se conserva la corrección de marco/banner y mínimo de altura del menú descrita en la sección anterior. Los botones de pedidos dejan de compartir una fila con ancho residual: se apilan usando el mismo constructor de botones y tarjetas existentes.
+
+Comprobaciones estáticas: 19 Lua compilados con LuaJIT compatible Lua 5.1, XML, TOC/40 archivos, caracteres, etiquetas de línea, llamadas y diff --check. Cobertura estructural: 570 funciones instrumentadas y 26 llamadas protegidas. Se revisaron las rutas de OC propio, confirmación/cancelación OR, OX previo/posterior y vencimiento; no se ejecutaron simulaciones, APIs de WoW o el cliente. No se declara validación E2E ni ausencia universal de errores.
+
+Criterios manuales pendientes:
+
+1. Evento futuro y vencido: autor y rangos 0/1 ven Eliminar evento; otro miembro no. Cancelar confirmación conserva el evento; aceptar retira evento e inscritos localmente y en otro cliente. Cambiar rango/contexto/revisión antes de aceptar debe impedir la acción anterior. Unirse/modificar inscripción de vencido sigue bloqueado.
+2. Pedido propio normal: Cancelar pedido visible dentro de tarjeta estrecha y desaparece al cerrar; otro cliente recibe el cierre. No cancelar pedidos ajenos. Conservación de completados y filtros existentes.
+3. Copia propia vigente guardada por el segundo cliente: recibirla como pendiente, sin republicación automática; Recuperar conserva ID/fecha y Cancelar emite cierre del mismo ID. No borrar datos para fabricar el caso sin autorización.
+4. Cierre conocido seguido de copia abierta atrasada: no reaparece el candidato; OX ajeno no cierra un pedido propio autoritativo. Replay/reload no reabre un cancelado conservado.
+5. Pedido con más de siete días: rechazo en recepción, ausencia en lista, acción impedida y limpieza posterior. No cambiar reloj del cliente ni alterar fechas de SavedVariables para la prueba sin autorización.
+6. Cliente que entra después de las consultas iniciales y mensajes perdidos: comprobar recuperación en consultas posteriores; comparar mismo ID/estado en ambos extremos y revisar logs con debug activado. Sin medición o garantía de latencia aún.
+7. Marco, calavera, banner y menú: ancho mínimo/calendario/opciones, rangos con 8 y 10 entradas, escalas y límites de pantalla. Revisión visual real pendiente.
+
+
+Instalación posterior autorizada de diseño, eventos y pedidos — 26/11/2026: Tartaro 0.2.1 con cambios locales posteriores a 2e89fa8 copiado en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`. Los 40 archivos coinciden por SHA256; sin extras, borrados, respaldos o ZIP. UI.lua: `59AEBDA138DB2A7C1B612BB642103D08DE683938E7FE9077819A6E5BFBAE057E`. Orders.lua: `97536A8B6C5DD4E5A7904F45CBD41C95843FFA9E70630E62ED248126C9D87459`. Sin commit, push, modificación del PR o interacción con WoW. Pendiente validación visual y de sincronización por el usuario.
+
+
+## Cobertura interior del banner — 26/11/2026
+
+El usuario aprobó el marco y los textos de la captura instalada, y señaló la franja vacía entre marco y estandarte. Ajuste limitado a la presentación: el rojo ocupa todo el interior de la cabecera (132 px con 2 px de margen en cada borde, 128 px de altura), sin un recuadro inferior separado. El emblema lateral crece con esa altura y conserva la proporción 90/69 de la tela nativa; el tramo plano ocupa el resto del ancho.
+
+Banner, tela y emblema son texturas BACKGROUND de win (subniveles 2/3/4), detrás del marco ARTWORK -1 y de la calavera ARTWORK. Se elimina el frame hijo del banner para que el fondo ampliado no tape la parte inferior de la calavera. No cambia el marco segmentado, su ancho, proporción ni posición. Título: posición efectiva izquierda 96 y top -77; lema: izquierda 96 y bottom -120 respecto del borde superior. Son las mismas coordenadas del diseño aprobado por el usuario. No cambia headerHeight=132, menú ni lógica de negocio.
+
+Verificación estática: compilación de 19 módulos con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres, etiquetas, conteos 570/26 y diff. Comprobación aritmética de anclajes para conservar textos, y revisión de capas sin ejecutar el cliente. Pendiente confirmar visualmente el resultado en Forever. Sin instalar, commit, push o actualizar PR por este ajuste.
+
+
+Instalación posterior autorizada del fondo completo — 26/11/2026: Tartaro 0.2.1 local posterior a 2e89fa8 copiado en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`, incluyendo eventos/pedidos. Los 40 archivos coinciden por SHA256, sin extras, borrados, respaldos o ZIP. UI.lua: `2D5976616CF009222D1BDC2A4FA2855DED5B9D7614394B9F998FAFBF966D0EEF`. Sin commit, push, actualización del PR o interacción con WoW. Pendiente revisión visual y funcional por el usuario.
+
+
+## Día actual del calendario — 26/11/2026
+
+El usuario solicita distinguir hoy más allá del color del número. Calendar.Display conserva todayKey mediante Calendar.dayKey(GetServerTime()), selección y eventos existentes. Tras aplicar SetStyle, para hoy establece borde dorado y fondo ámbar, con etiqueta HOY en la esquina superior derecha; número permanece a la izquierda y los eventos comienzan más abajo. El fondo es más claro cuando hoy también está seleccionado. El resto de días conserva el estilo anterior, incluido el seleccionado en cobre.
+
+La etiqueta se crea bajo demanda en la celda que la necesita; al reutilizar celdas se oculta si no corresponde a hoy. SetStyle reaplicado elimina borde/fondo anteriores cuando cambia la fecha o el mes. No se añaden callbacks, eventos, timers, animaciones o dependencias, ni se altera fecha local o selección. El calendario continúa usando sus refrescos existentes.
+
+Verificación estática: 19 Lua compilados con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres, etiquetas de línea, conteos 570/26 y diff --check. Pendiente comprobar visualmente hoy seleccionado y sin seleccionar, otro día seleccionado, cambio de mes y cambio de día local. No se ejecutó el addon. Versión 0.2.1; sin instalación, commit, push o actualización del PR por este ajuste.
+
+
+Instalación posterior autorizada de resaltado de HOY — 26/11/2026: Tartaro 0.2.1 local posterior a 2e89fa8 copiado en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`, con todos los cambios locales previos. Los 40 archivos coinciden por SHA256; sin extras, borrados, respaldos o ZIP. Calendar.lua: `1E8914C484C02F5ACE505FA2C1D91DCE17CBEBD4754A2801A57C22B9D648F4B9`. Sin commit, push, cambio del PR o interacción con WoW. Pendiente revisión visual y funcional del usuario.
+
+
+## Consolidación de banner, calendario, eventos y pedidos — 26/11/2026
+
+Autorizado un nuevo commit local sobre 2e89fa8, versión 0.2.1. Reúne el marco Horda definitivo de ancho completo, calavera conservada, fondo rojo/emblema cubriendo la cabecera y textos aprobados; mínimo de altura del navegador; botón de eliminar desde tarjetas de eventos futuros/vencidos; cancelación y recuperación explícita de pedidos propios, vigencia original y AQ periódico; borde/fondo/etiqueta HOY del calendario. Los apartados anteriores preservan evidencia y límites de cada cambio, incluidos intentos visuales rechazados y sus correcciones.
+
+Instalación final previa autorizada y verificada con 40 SHA256 coincidentes, sin operar el cliente. Esta consolidación actualiza documentación y no reinstala. Compilación estática de 19 Lua con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres, etiquetas, conteos 570/26 y diff. Pruebas visuales finales, permisos, cancelación/eliminación recibidas y sincronización real entre dos clientes siguen pendientes; no se declaran cerradas.
+
+PR #16 comprobado abierto y sin integrar; el usuario autoriza publicar este nuevo commit en su rama y actualizar la descripción. Sin reescritura del historial, merge, auto-merge, release o ZIP. Los estados anteriores «sin commit/push/instalación» son históricos de las entregas, no restricciones posteriores a esta autorización. El commit que contiene esta anotación identifica la consolidación.
+
+
+## Confirmación del usuario y QA del encargado — 26/11/2026
+
+Después de consolidar 4fb3eb3, el usuario confirma que ya hizo las pruebas visuales y de funcionamiento. Se registra como evidencia reportada por él, sin atribuir al agente ejecución dentro de WoW o inventar escenarios multicliente específicos. Las menciones anteriores a revisión visual pendiente describen el estado previo a esa confirmación, no una nueva aprobación exigida al usuario.
+
+El propósito del PR #16 es que el encargado realice QA antes de aprobar e integrar. Se solicita esa revisión con cambios, límites y criterios documentados; no se hace merge ni se activa auto-merge. Esta actualización documental no cambia el código, no instala y no implica que el QA del encargado ya haya terminado.
+
+
+## Bloquear posición del botón Llamado a las Armas — 26/11/2026
+
+Solicitud: fijar la ubicación elegida después de arrastrar el botón para evitar movimientos accidentales. Opciones incorpora casilla debajo de las preferencias de ventana. El valor TartaroDB.callLauncherLocked se considera activo solo si es true; nil/false conserva el comportamiento anterior y la casilla desmarcada. Se guarda mediante SavedVariables existente, sin protocolo o temporizadores nuevos.
+
+A.setCallLauncherLocked finaliza un arrastre activo mediante stopDrag antes de guardar la preferencia. Si no hay movimiento, no altera la posición guardada ni la escala. OnDragStart marca el gesto como arrastre y rechaza StartMoving si está bloqueado: soltar un arrastre bloqueado no se convierte en clic de llamado. Los clics normales siguen usando OnClick/confirmación y el control de tamaño continúa funcionando. OnDragStop y OnHide conservan la limpieza anterior. Restablecer configuración invoca el mismo setter para detener movimiento/desbloquear antes de limpiar preferencia y posiciones; la casilla se actualiza al reabrir/sincronizar Opciones.
+
+Para mantener el contenido dentro de la ventana, optionsPanel pasa de 345 a 385 px y la altura de la vista Opciones incluye headerHeight + 20 + alto del panel + 18, respetando mínimo de navegación y cálculo de escala. Las otras vistas mantienen sus alturas y el comportamiento de anclaje actual.
+
+Verificación estática: compilación de 19 módulos con LuaJIT compatible Lua 5.1, XML/TOC/40 archivos, caracteres y etiquetas, conteos 572 funciones instrumentadas/26 llamadas protegidas y diff --check. Revisión de referencias del setter (casilla/reset), guard de drag, orden de parada/guardado y preferencia default. No se ejecuta el addon ni se recrean simuladores.
+
+Criterios nuevos para usuario/QA: mover/desmarcada y guardar; marcar y comprobar que no se mueve ni abre llamado tras intentar arrastrarlo; clic normal conserva confirmación; cambiar tamaño conserva escala prevista; reload conserva bloqueo/posición; desmarcar permite mover; restablecer vuelve a posición/tamaño predeterminados y desbloquea; Opciones y reset quedan dentro con escalas habituales. La confirmación previa del usuario corresponde a la entrega anterior; esta función nueva aún no se probó en Forever.
+
+Versión 0.2.1 conservada. Sin instalación, commit, push o modificación del PR por este cambio.
+
+
+Instalación posterior autorizada del bloqueo de posición — 26/11/2026: Tartaro 0.2.1 local posterior a ae9caa9 copiado en `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\Tartaro`. Los 40 archivos coinciden por SHA256; sin extras, borrados, respaldos o ZIP. UI.lua: `0FFFE6705424C6373D0B5938F97991776D69C844C10C68CC4482444CE40E22CE`. Sin commit, push, cambio del PR o interacción con WoW. Pendiente prueba del usuario de la nueva opción.
+
+
+Publicación posterior autorizada del bloqueo — 26/11/2026: PR #16 comprobado abierto y sin integrar, con head ae9caa9 antes de operar. Nuevo commit de implementación/documentación y publicación en su rama para QA del encargado, sin merge, auto-merge o instalación adicional. La prueba específica de esta nueva casilla no ha sido confirmada por el usuario; no se extiende la confirmación anterior a ese escenario.
